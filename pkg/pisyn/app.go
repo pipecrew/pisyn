@@ -90,7 +90,7 @@ func (a *App) Run() error {
 		if err := a.Synth(factory()); err != nil {
 			return fmt.Errorf("❌ synth %s: %w", p, err)
 		}
-		fmt.Printf("✅ %s synthesized → %s\n", p, a.OutDir)
+		fmt.Printf("⚗️ %s synthesized → %s\n", p, a.OutDir)
 	}
 	return nil
 }

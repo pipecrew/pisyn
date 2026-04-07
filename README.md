@@ -1,4 +1,4 @@
-# pisyn — the pipeline synthesizer
+# ⚗️ pisyn — the pipeline synthesizer
 
 Define CI/CD pipelines in Go, synthesize to GitLab CI, GitHub Actions, or Tekton.
 
@@ -39,6 +39,8 @@ AWS CDK proved that "define infrastructure in code, synthesize to config" works 
 - Templates are Go variables — share them as Go modules with proper versioning
 
 ## Quick Start
+
+![pisyn synth](docs/pisyn-synth.gif)
 
 ```go
 package main
@@ -87,7 +89,7 @@ test := pisyn.NewStage(p, "test")        // stage in pipeline
 pisyn.NewJob(test, "unit-tests")         // job in stage
 ```
 
-## Synthesizers
+## ⚗️ Synthesizers
 
 Import synthesizer packages to register them. Blank imports (`_`) auto-register via `init()`:
 
@@ -184,6 +186,8 @@ pisyn graph --output graph.svg                 # render SVG via mmdc
 ### Local Execution
 
 Run pipelines locally in Docker containers with a live TUI for fast feedback before pushing:
+
+![pisyn run](docs/pisyn-run.gif)
 
 ```sh
 pisyn run                                      # run all jobs with TUI
