@@ -13,6 +13,7 @@ const (
 	VarJobName        = "$PISYN_JOB_NAME"
 	VarJobToken       = "$PISYN_JOB_TOKEN"
 	VarProjectPath    = "$PISYN_PROJECT_PATH"
+	VarProjectURL     = "$PISYN_PROJECT_URL"
 	VarProjectDir     = "$PISYN_PROJECT_DIR"
 	VarProjectName    = "$PISYN_PROJECT_NAME"
 	VarProjectNS      = "$PISYN_PROJECT_NAMESPACE"
@@ -34,6 +35,7 @@ var GitLabVars = map[string]string{
 	"PISYN_JOB_NAME":          "CI_JOB_NAME",
 	"PISYN_JOB_TOKEN":         "CI_JOB_TOKEN",
 	"PISYN_PROJECT_PATH":      "CI_PROJECT_PATH",
+	"PISYN_PROJECT_URL":       "CI_REPOSITORY_URL",
 	"PISYN_PROJECT_DIR":       "CI_PROJECT_DIR",
 	"PISYN_PROJECT_NAME":      "CI_PROJECT_NAME",
 	"PISYN_PROJECT_NAMESPACE": "CI_PROJECT_NAMESPACE",
@@ -55,6 +57,7 @@ var GitHubVars = map[string]string{
 	"PISYN_JOB_NAME":          "${{ github.job }}",
 	"PISYN_JOB_TOKEN":         "${{ secrets.GITHUB_TOKEN }}",
 	"PISYN_PROJECT_PATH":      "${{ github.repository }}",
+	"PISYN_PROJECT_URL":       "${{ github.server_url }}/${{ github.repository }}",
 	"PISYN_PROJECT_DIR":       "${GITHUB_WORKSPACE}",
 	"PISYN_PROJECT_NAME":      "${{ github.event.repository.name }}",
 	"PISYN_PROJECT_NAMESPACE": "${{ github.repository_owner }}",
@@ -76,6 +79,7 @@ var TektonVars = map[string]string{
 	"PISYN_JOB_NAME":          "$(params.job-name)",
 	"PISYN_JOB_TOKEN":         "$(params.job-token)",
 	"PISYN_PROJECT_PATH":      "$(params.project-path)",
+	"PISYN_PROJECT_URL":       "$(params.project-url)",
 	"PISYN_PROJECT_DIR":       "$(workspaces.source.path)",
 	"PISYN_PROJECT_NAME":      "$(params.project-name)",
 	"PISYN_PROJECT_NAMESPACE": "$(params.project-namespace)",
