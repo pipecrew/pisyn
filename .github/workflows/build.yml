@@ -1,0 +1,112 @@
+name: Build
+on:
+    pull_request:
+        branches:
+            - main
+    workflow_dispatch: {}
+env:
+    CGO_ENABLED: "0"
+    GOFLAGS: -trimpath
+jobs:
+    lint-go:
+        container:
+            image: golangci/golangci-lint:v2.11.3-alpine
+            options: --entrypoint ""
+        continue-on-error: true
+        if: ${{ github.event.pull_request.number }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                key: go-mod
+                path: /go/pkg/mod
+            - name: Run
+              run: golangci-lint run --timeout 5m ./...
+    vulncheck:
+        container:
+            image: golang:1.26
+        continue-on-error: true
+        if: ${{ github.event.pull_request.number }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                key: go-mod
+                path: /go/pkg/mod
+            - name: Run
+              run: |-
+                go install golang.org/x/vuln/cmd/govulncheck@latest
+                govulncheck ./...
+    unit-tests:
+        container:
+            image: golang:1.26
+        needs:
+            - lint-go
+            - vulncheck
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                key: go-mod
+                path: /go/pkg/mod
+            - name: Run
+              run: go test -v -cover -coverprofile=coverage.out -covermode=atomic ./...
+            - if: always()
+              name: Upload artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                name: unit-tests-artifacts
+                path: coverage.out
+    gen-version:
+        container:
+            image: golang:1.26
+        needs:
+            - unit-tests
+        outputs:
+            version: ${{ steps.outputs.outputs.version }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                fetch-depth: "0"
+            - name: Mark workspace as safe directory
+              run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                key: go-mod
+                path: /go/pkg/mod
+            - name: Run
+              run: echo "VERSION=$(git describe --tags --always)" > version.env
+            - id: outputs
+              name: Set outputs
+              run: cat version.env >> $GITHUB_OUTPUT
+    build-binary:
+        container:
+            image: golang:1.26
+        needs:
+            - gen-version
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - name: Cache dependencies
+              uses: actions/cache@v4
+              with:
+                key: go-mod
+                path: /go/pkg/mod
+            - name: Run
+              run: 'echo "Version is: "${{ needs.gen-version.outputs.version }}'
+            - name: Run
+              run: go build -buildvcs=false -ldflags "-s -w -X main.pisynVersion=${{ needs.gen-version.outputs.version }}" -o bin/pisyn ./cmd/pisyn
+            - if: always()
+              name: Upload artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                name: build-binary-artifacts
+                path: bin/

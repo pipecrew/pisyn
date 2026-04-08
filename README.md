@@ -613,3 +613,29 @@ Each example has its own README with a detailed explanation, the Mermaid pipelin
 ```sh
 go test ./...
 ```
+
+## Releasing
+
+Releases are automated via [release-please](https://github.com/googleapis/release-please) and [GoReleaser](https://goreleaser.com/).
+
+**Flow:**
+1. Push conventional commits to `main` (`feat:`, `fix:`, `chore:`, etc.)
+2. release-please maintains an open "Release PR" with accumulated changelog and version bump
+3. Merge the Release PR → release-please creates a git tag (`v0.1.0`)
+4. The tag triggers GoReleaser → cross-compiles binaries, creates a GitHub Release with changelog and checksums
+
+**Manual release** (if needed):
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+### Installing a release
+
+```sh
+# Via go install (requires Go)
+go install github.com/pipecrew/pisyn/cmd/pisyn@v0.1.0
+
+# Or download a binary from the GitHub Releases page
+```
