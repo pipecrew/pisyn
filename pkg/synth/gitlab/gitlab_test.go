@@ -199,3 +199,24 @@ func TestSynthGitLabOutputs(t *testing.T) {
 		t.Errorf("untranslated PISYN_OUTPUT in output:\n%s", out)
 	}
 }
+
+func TestSynthGitLabOnPushTag(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "Release").OnPushTag("v*")
+	s := pisyn.NewStage(p, "release")
+	pisyn.NewJob(s, "goreleaser").Image("golang:1.26").Script("echo release")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, _ := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	out := string(b)
+
+	if !strings.Contains(out, `$CI_COMMIT_TAG =~ /^v.*/`) {
+		t.Errorf("missing tag workflow rule in output:\n%s", out)
+	}
+}

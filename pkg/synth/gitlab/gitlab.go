@@ -21,9 +21,10 @@ func init() {
 
 // Synth generates GitLab CI YAML from the app's construct tree.
 func (syn *Synthesizer) Synth(app *pisyn.App, outDir string) error {
-	for _, pipeline := range app.Pipelines() {
-		out := syn.renderPipeline(pipeline)
-		if err := synth.WriteYAML(outDir, ".gitlab-ci.yml", out); err != nil {
+	pipelines := app.Pipelines()
+	if len(pipelines) == 1 {
+		out := syn.renderPipeline(pipelines[0])
+		return synth.WriteYAML(outDir, ".gitlab-ci.yml", out); err != nil {
 			return err
 		}
 	}
@@ -131,6 +132,12 @@ func renderWorkflowRules(triggers pisyn.Triggers) []map[string]any {
 				"when": "always",
 			})
 		}
+		for _, tag := range triggers.Push.Tags {
+			rules = append(rules, map[string]any{
+				"if":   fmt.Sprintf(`$CI_COMMIT_TAG =~ /^%s/`, tagPatternToRegex(tag)),
+				"when": "always",
+			})
+		}
 	}
 	if triggers.PullRequest != nil {
 		rules = append(rules, map[string]any{
@@ -145,6 +152,11 @@ func renderWorkflowRules(triggers pisyn.Triggers) []map[string]any {
 		})
 	}
 	return rules
+}
+
+// tagPatternToRegex converts a glob-style tag pattern (e.g. "v*") to a regex fragment.
+func tagPatternToRegex(pattern string) string {
+	return strings.ReplaceAll(pattern, "*", ".*")
 }
 
 // renderIncludes converts pisyn Include entries to GitLab CI include format.

@@ -232,6 +232,20 @@ func TestOnPushPreservesProtected(t *testing.T) {
 	}
 }
 
+func TestOnPushTagPreservesBranches(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI").
+		OnPush("main").
+		OnPushTag("v*")
+
+	if len(p.On.Push.Branches) != 1 || p.On.Push.Branches[0] != "main" {
+		t.Fatalf("OnPushTag should preserve branches, got %v", p.On.Push.Branches)
+	}
+	if len(p.On.Push.Tags) != 1 || p.On.Push.Tags[0] != "v*" {
+		t.Fatalf("expected tags [v*], got %v", p.On.Push.Tags)
+	}
+}
+
 func TestDuplicateJobNamePanics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {

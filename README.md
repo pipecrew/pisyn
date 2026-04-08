@@ -426,6 +426,7 @@ pisyn.NewJob(stage, "deploy").
 pisyn.NewPipeline(app, "CI/CD").
     SetEnv("GO_VERSION", "1.26").
     OnPush("main", "develop").
+    OnPushTag("v*").
     OnPushProtected().
     OnPR("main").
     OnSchedule("0 2 * * *")
@@ -448,7 +449,7 @@ pisyn.NewPipeline(app, "CI").
     })
 ```
 
-If no explicit workflow rules are set, they are auto-generated from `OnPush`/`OnPR`/`OnSchedule` triggers.
+If no explicit workflow rules are set, they are auto-generated from `OnPush`/`OnPushTag`/`OnPR`/`OnSchedule` triggers.
 
 ### Includes (GitLab CI)
 
@@ -582,7 +583,7 @@ golang.TestJob.Clone(stage, "unit-tests").Script("go test ./...")
 | Interruptible | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Extends / inheritance | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Steps (`uses:` actions) | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Triggers (push, PR, schedule) | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Triggers (push, tags, PR, schedule) | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Reusable templates (Clone) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Pipeline-level env | ✅ | ✅ | ✅ | ❌ | ✅ |
 | Local execution (TUI) | ✅ | ❌ | ❌ | ❌ | ✅ |

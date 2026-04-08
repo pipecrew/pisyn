@@ -68,7 +68,16 @@ func (syn *Synthesizer) renderPipeline(pipeline *pisyn.Pipeline) *synth.OrderedM
 func renderTriggers(triggers pisyn.Triggers) map[string]any {
 	on := map[string]any{}
 	if triggers.Push != nil {
-		on["push"] = map[string]any{"branches": triggers.Push.Branches}
+		push := map[string]any{}
+		if len(triggers.Push.Branches) > 0 {
+			push["branches"] = triggers.Push.Branches
+		}
+		if len(triggers.Push.Tags) > 0 {
+			push["tags"] = triggers.Push.Tags
+		}
+		if len(push) > 0 {
+			on["push"] = push
+		}
 	}
 	if triggers.PullRequest != nil {
 		on["pull_request"] = map[string]any{"branches": triggers.PullRequest.Branches}
