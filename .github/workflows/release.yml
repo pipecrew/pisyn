@@ -1,0 +1,21 @@
+name: Release
+on:
+    push:
+        tags:
+            - v*
+    workflow_dispatch: {}
+jobs:
+    goreleaser:
+        container:
+            image: goreleaser/goreleaser:v2.15.2
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                fetch-depth: "0"
+            - name: Mark workspace as safe directory
+              run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
+            - name: Run
+              run: goreleaser release --clean

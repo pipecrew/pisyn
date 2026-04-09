@@ -21,13 +21,75 @@ func init() {
 
 // Synth generates GitLab CI YAML from the app's construct tree.
 func (syn *Synthesizer) Synth(app *pisyn.App, outDir string) error {
-	for _, pipeline := range app.Pipelines() {
-		out := syn.renderPipeline(pipeline)
-		if err := synth.WriteYAML(outDir, ".gitlab-ci.yml", out); err != nil {
-			return err
+	pipelines := app.Pipelines()
+	if len(pipelines) == 1 {
+		out := syn.renderPipeline(pipelines[0])
+		return synth.WriteYAML(outDir, ".gitlab-ci.yml", out)
+	}
+	return syn.renderMerged(pipelines, outDir)
+}
+
+// renderMerged merges multiple pipelines into a single .gitlab-ci.yml.
+// Each pipeline's triggers become job-level rules so jobs only run in the right context.
+func (syn *Synthesizer) renderMerged(pipelines []*pisyn.Pipeline, outDir string) error {
+	cfg := synth.NewOrderedMap()
+
+	// Collect all stages, includes, env, and workflow rules across pipelines
+	var allStages []string
+	var allWorkflowRules []map[string]any
+	var allIncludes []pisyn.Include
+	allEnv := map[string]string{}
+	seen := map[string]bool{}
+
+	for _, pipeline := range pipelines {
+		for _, stage := range pipeline.Stages() {
+			if !seen[stage.Name] {
+				allStages = append(allStages, stage.Name)
+				seen[stage.Name] = true
+			}
+		}
+		if len(pipeline.WorkflowRules) > 0 {
+			allWorkflowRules = append(allWorkflowRules, renderRuleList(pipeline.WorkflowRules)...)
+		} else if wfRules := renderWorkflowRules(pipeline.On); len(wfRules) > 0 {
+			allWorkflowRules = append(allWorkflowRules, wfRules...)
+		}
+		for key, val := range pipeline.Env {
+			allEnv[key] = translateVars(val)
+		}
+		allIncludes = append(allIncludes, pipeline.IncludeList...)
+	}
+
+	if len(allIncludes) > 0 {
+		cfg.Set("include", renderIncludes(allIncludes))
+	}
+	if len(allStages) > 0 {
+		cfg.Set("stages", allStages)
+	}
+	if len(allWorkflowRules) > 0 {
+		cfg.Set("workflow", map[string]any{"rules": allWorkflowRules})
+	}
+	if len(allEnv) > 0 {
+		cfg.Set("variables", allEnv)
+	}
+
+	// Render jobs, injecting pipeline-level trigger rules onto jobs that don't have their own
+	for _, pipeline := range pipelines {
+		pipelineRules := renderWorkflowRules(pipeline.On)
+		if len(pipeline.WorkflowRules) > 0 {
+			pipelineRules = renderRuleList(pipeline.WorkflowRules)
+		}
+		for _, stage := range pipeline.Stages() {
+			for _, job := range stage.Jobs() {
+				rendered := renderJob(job, stage.Name)
+				if len(job.Rules) == 0 && len(pipelineRules) > 0 {
+					rendered["rules"] = pipelineRules
+				}
+				cfg.Set(job.JobName, rendered)
+			}
 		}
 	}
-	return nil
+
+	return synth.WriteYAML(outDir, ".gitlab-ci.yml", cfg)
 }
 
 func (syn *Synthesizer) renderPipeline(pipeline *pisyn.Pipeline) *synth.OrderedMap {
@@ -131,6 +193,12 @@ func renderWorkflowRules(triggers pisyn.Triggers) []map[string]any {
 				"when": "always",
 			})
 		}
+		for _, tag := range triggers.Push.Tags {
+			rules = append(rules, map[string]any{
+				"if":   fmt.Sprintf(`$CI_COMMIT_TAG =~ /^%s/`, tagPatternToRegex(tag)),
+				"when": "always",
+			})
+		}
 	}
 	if triggers.PullRequest != nil {
 		rules = append(rules, map[string]any{
@@ -145,6 +213,11 @@ func renderWorkflowRules(triggers pisyn.Triggers) []map[string]any {
 		})
 	}
 	return rules
+}
+
+// tagPatternToRegex converts a glob-style tag pattern (e.g. "v*") to a regex fragment.
+func tagPatternToRegex(pattern string) string {
+	return strings.ReplaceAll(pattern, "*", ".*")
 }
 
 // renderIncludes converts pisyn Include entries to GitLab CI include format.

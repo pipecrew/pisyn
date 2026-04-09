@@ -68,7 +68,16 @@ func (syn *Synthesizer) renderPipeline(pipeline *pisyn.Pipeline) *synth.OrderedM
 func renderTriggers(triggers pisyn.Triggers) map[string]any {
 	on := map[string]any{}
 	if triggers.Push != nil {
-		on["push"] = map[string]any{"branches": triggers.Push.Branches}
+		push := map[string]any{}
+		if len(triggers.Push.Branches) > 0 {
+			push["branches"] = triggers.Push.Branches
+		}
+		if len(triggers.Push.Tags) > 0 {
+			push["tags"] = triggers.Push.Tags
+		}
+		if len(push) > 0 {
+			on["push"] = push
+		}
 	}
 	if triggers.PullRequest != nil {
 		on["pull_request"] = map[string]any{"branches": triggers.PullRequest.Branches}
@@ -246,7 +255,20 @@ func buildSteps(job *pisyn.Job) []map[string]any {
 	var steps []map[string]any
 
 	// Every job starts with a checkout
-	steps = append(steps, map[string]any{"uses": "actions/checkout@v5"})
+	checkout := map[string]any{"uses": "actions/checkout@v5"}
+	if job.FetchDepth >= 0 {
+		checkout["with"] = map[string]any{"fetch-depth": fmt.Sprintf("%d", job.FetchDepth)}
+	}
+	steps = append(steps, checkout)
+
+	// Container jobs with full git history need safe.directory — the checkout
+	// action's config uses a temporary HOME that doesn't persist to subsequent steps.
+	if job.ImageName != "" && job.FetchDepth >= 0 {
+		steps = append(steps, map[string]any{
+			"name": "Mark workspace as safe directory",
+			"run":  "git config --global --add safe.directory ${GITHUB_WORKSPACE}",
+		})
+	}
 
 	// Dependency caching (rendered as an actions/cache step)
 	if job.CacheCfg != nil {

@@ -285,3 +285,34 @@ func TestSynthGitHubOutputs(t *testing.T) {
 		}
 	}
 }
+
+func TestSynthGitHubOnPushTag(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "Release").OnPushTag("v*")
+	s := pisyn.NewStage(p, "release")
+	pisyn.NewJob(s, "goreleaser").Image("golang:1.26").Script("echo release")
+
+	if err := app.Synth(github.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, _ := os.ReadFile(filepath.Join(dir, ".github", "workflows", "release.yml"))
+	out := string(b)
+
+	for _, want := range []string{
+		"tags:",
+		"- v*",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+
+	// Should not have branches key when only tags are set
+	if strings.Contains(out, "branches:") {
+		t.Errorf("unexpected 'branches:' in tag-only trigger:\n%s", out)
+	}
+}

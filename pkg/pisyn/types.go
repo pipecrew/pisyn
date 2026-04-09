@@ -122,6 +122,7 @@ type AllowFailureConfig struct {
 // PushTrigger configures a push event trigger.
 type PushTrigger struct {
 	Branches  []string `json:"branches,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
 	Protected bool     `json:"protected,omitempty"`
 }
 

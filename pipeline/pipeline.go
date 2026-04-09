@@ -11,18 +11,25 @@ import (
 func main() {
 	app := ps.NewApp()
 
-	pipeline := ps.NewPipeline(app, "pisyn buildpipeline").
-		OnPush("main").
+	buildPipeline(app)
+	releasePleasePipeline(app)
+	releasePipeline(app)
+
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func buildPipeline(app *ps.App) {
+	pipeline := ps.NewPipeline(app, "Build").
 		OnPR("main").
 		OnPushProtected().
 		SetEnv("CGO_ENABLED", "0").
 		SetEnv("GOFLAGS", "-trimpath")
 
-	// --- Reusable templates ---
 	goBase := ps.JobTemplate("go-base").
 		Image("golang:1.26").
 		SetCache(ps.Cache{Key: "go-mod", Paths: []string{"/go/pkg/mod"}}).
-		AddTag("non-prod-workload").
 		SetInterruptible(true).
 		SetRetry(ps.RetryConfig{
 			Max:  2,
@@ -38,13 +45,7 @@ func main() {
 		AddRule(ps.Rule{If: ps.VarMRID, When: "always"}).
 		AddRule(ps.Rule{When: "never"}).
 		AllowFailure().
-		Script("golangci-lint run --timeout 5m ./...").
-		SetArtifacts(ps.Artifacts{
-			Paths: []string{"gl-code-quality.json"},
-			Reports: map[string][]string{
-				"codequality": {"gl-code-quality.json"},
-			},
-		})
+		Script("golangci-lint run --timeout 5m ./...")
 
 	goBase.Clone(lint, "vulncheck").
 		AddRule(ps.Rule{If: ps.VarMRID, When: "always"}).
@@ -60,7 +61,7 @@ func main() {
 
 	goBase.Clone(test, "unit-tests").
 		Needs("lint-go", "vulncheck").
-		Script("go test -race -coverprofile=coverage.out -covermode=atomic ./...").
+		Script("go test -v -cover -coverprofile=coverage.out -covermode=atomic ./...").
 		SetArtifacts(ps.Artifacts{
 			Paths:    []string{"coverage.out"},
 			ExpireIn: "7 days",
@@ -69,12 +70,12 @@ func main() {
 			},
 		})
 
-	// --- Build stage (uses version output from gen-version) ---
+	// --- Build stage ---
 	build := ps.NewStage(pipeline, "build")
 
 	genVersion := goBase.Clone(build, "gen-version").
 		Needs("unit-tests").
-		Script("git config --global --add safe.directory "+ps.VarProjectDir).
+		SetFetchDepth(0).
 		Script(`echo "VERSION=$(git describe --tags --always)" > version.env`).
 		Output("VERSION", "version.env")
 
@@ -82,31 +83,38 @@ func main() {
 		Needs("gen-version").
 		Script(`echo "Version is: "` + genVersion.OutputRef("VERSION")).
 		Script(
-			"go build -buildvcs=false  -ldflags \"-s -w -X main.version=" + genVersion.OutputRef("VERSION") + "\" -o bin/pisyn ./cmd/pisyn",
+			"go build -buildvcs=false -ldflags \"-s -w -X main.pisynVersion=" + genVersion.OutputRef("VERSION") + "\" -o bin/pisyn ./cmd/pisyn",
 		).
 		SetArtifacts(ps.Artifacts{
 			Paths:    []string{"bin/"},
 			ExpireIn: "30 days",
 		})
+}
 
-	// --- Release stage (only on main branch, uses version from gen-version) ---
-	release := ps.NewStage(pipeline, "release")
+func releasePleasePipeline(app *ps.App) {
+	pipeline := ps.NewPipeline(app, "Release Please").
+		OnPush("main")
 
-	goBase.Clone(release, "release").
-		Needs("build-binary").
-		AddTag("prod-workload").
-		SetInterruptible(false).
-		If(ps.VarCommitBranch+` == "main"`).
-		AddStep(ps.Step{
-			Uses: "actions/upload-artifact@v4",
-			With: map[string]string{"name": "release-binary", "path": "bin/"},
-		}).
+	stage := ps.NewStage(pipeline, "release-please")
+
+	ps.NewJob(stage, "release-please").
+		Image("node:22-alpine").
+		Env("RELEASE_PAT", "${{ secrets.RELEASE_PAT }}").
 		Script(
-			"echo releasing "+ps.VarProjectPath+" version "+genVersion.OutputRef("VERSION"),
-		).
-		SetEnvironment("production", "https://app.example.com")
+			"npx release-please release-pr --repo-url="+ps.VarProjectURL+" --token=$RELEASE_PAT --release-type=go --pull-request-header=\":robot: new release\" --pull-request-footer=\" \"",
+			"npx release-please github-release --repo-url="+ps.VarProjectURL+" --token=$RELEASE_PAT --release-type=go",
+		)
+}
 
-	if err := app.Run(); err != nil {
-		log.Fatal(err)
-	}
+func releasePipeline(app *ps.App) {
+	pipeline := ps.NewPipeline(app, "Release").
+		OnPushTag("v*")
+
+	stage := ps.NewStage(pipeline, "goreleaser")
+
+	ps.NewJob(stage, "goreleaser").
+		Image("goreleaser/goreleaser:v2.15.2").
+		SetFetchDepth(0).
+		Script("goreleaser release --clean").
+		Env("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}")
 }

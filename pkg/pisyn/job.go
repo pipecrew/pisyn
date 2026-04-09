@@ -33,15 +33,17 @@ type Job struct {
 	DependencyList  []string
 	EmptyNeeds      bool
 	OutputList      []JobOutput
+	FetchDepth      int // 0 = full history, -1 = default (unset)
 }
 
 // NewJob creates a new job in the given stage.
 func NewJob(scope *Stage, name string) *Job {
 	checkDuplicateJobName(scope, name)
 	j := &Job{
-		JobName: name,
-		Runner:  "ubuntu-latest",
-		EnvVars: map[string]string{},
+		JobName:    name,
+		Runner:     "ubuntu-latest",
+		EnvVars:    map[string]string{},
+		FetchDepth: -1,
 	}
 	j.Construct = newConstruct(&scope.Construct, name, j)
 	return j
@@ -50,9 +52,10 @@ func NewJob(scope *Stage, name string) *Job {
 // JobTemplate creates a Job without a scope — for use as a reusable template.
 func JobTemplate(name string) *Job {
 	return &Job{
-		JobName: name,
-		Runner:  "ubuntu-latest",
-		EnvVars: map[string]string{},
+		JobName:    name,
+		Runner:     "ubuntu-latest",
+		EnvVars:    map[string]string{},
+		FetchDepth: -1,
 	}
 }
 
@@ -81,6 +84,7 @@ func (j *Job) Clone(scope *Stage, name string) *Job {
 		DependencyList:  cloneStrings(j.DependencyList),
 		EmptyNeeds:      j.EmptyNeeds,
 		OutputList:      cloneSlice(j.OutputList),
+		FetchDepth:      j.FetchDepth,
 	}
 	if j.ArtifactsCfg != nil {
 		a := *j.ArtifactsCfg
@@ -113,6 +117,9 @@ func (j *Job) ImageEntrypoint(cmds ...string) *Job { j.ImageEP = cmds; return j 
 
 // ImageUser sets the Docker user for the image.
 func (j *Job) ImageUser(user string) *Job { j.ImageUsr = user; return j }
+
+// SetFetchDepth sets the checkout fetch depth (0 = full history).
+func (j *Job) SetFetchDepth(depth int) *Job { j.FetchDepth = depth; return j }
 
 // Script appends a script block to the job's actions.
 func (j *Job) Script(cmds ...string) *Job {

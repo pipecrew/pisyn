@@ -50,6 +50,15 @@ func (p *Pipeline) OnPushProtected() *Pipeline {
 	return p
 }
 
+// OnPushTag adds a push trigger for the given tag patterns (e.g. "v*").
+func (p *Pipeline) OnPushTag(patterns ...string) *Pipeline {
+	if p.On.Push == nil {
+		p.On.Push = &PushTrigger{}
+	}
+	p.On.Push.Tags = patterns
+	return p
+}
+
 // OnPR adds a pull/merge request trigger for the given target branches.
 func (p *Pipeline) OnPR(branches ...string) *Pipeline {
 	p.On.PullRequest = &PRTrigger{Branches: branches}

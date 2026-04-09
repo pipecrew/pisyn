@@ -375,6 +375,23 @@ func TestIR_TriggersPreserved(t *testing.T) {
 	}
 }
 
+func TestIR_OnPushTagPreserved(t *testing.T) {
+	app := NewApp()
+	NewPipeline(app, "Release").
+		OnPushTag("v*")
+
+	ir := app.ToIR()
+	data, _ := json.Marshal(ir)
+	var loaded IRApp
+	json.Unmarshal(data, &loaded)
+	app2 := loaded.ToApp()
+
+	p := app2.Pipelines()[0]
+	if p.On.Push == nil || len(p.On.Push.Tags) != 1 || p.On.Push.Tags[0] != "v*" {
+		t.Error("push tags lost in IR roundtrip")
+	}
+}
+
 func TestLoadIR_FileNotFound(t *testing.T) {
 	_, err := LoadIR("/nonexistent/pipeline.json")
 	if err == nil {
