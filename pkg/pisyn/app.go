@@ -47,6 +47,9 @@ func (a *App) Pipelines() []*Pipeline {
 
 // Synth synthesizes the app using the given synthesizer.
 func (a *App) Synth(s Synthesizer) error {
+	if err := a.checkDuplicateJobNames(); err != nil {
+		return err
+	}
 	return s.Synth(a, a.OutDir)
 }
 
@@ -140,4 +143,19 @@ func platformsFromEnv() []string {
 		}
 	}
 	return out
+}
+
+func (a *App) checkDuplicateJobNames() error {
+	for _, p := range a.Pipelines() {
+		seen := map[string]bool{}
+		for _, st := range p.Stages() {
+			for _, j := range st.Jobs() {
+				if seen[j.JobName] {
+					return fmt.Errorf("pisyn: duplicate job name %q in pipeline %q", j.JobName, p.Construct.id)
+				}
+				seen[j.JobName] = true
+			}
+		}
+	}
+	return nil
 }

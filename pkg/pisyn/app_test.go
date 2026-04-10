@@ -110,6 +110,29 @@ func TestRunNoRegisteredPlatforms(t *testing.T) {
 	}
 }
 
+func TestSynthReturnsErrorForDuplicateJobNames(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	st1 := NewStage(p, "build")
+	st2 := NewStage(p, "test")
+
+	NewJob(st1, "compile")
+	dup := NewJob(st2, "unit")
+	dup.JobName = "compile"
+
+	s := &fakeSynth{}
+	err := app.Synth(s)
+	if err == nil {
+		t.Fatal("expected duplicate job name error")
+	}
+	if err.Error() != `pisyn: duplicate job name "compile" in pipeline "CI"` {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if s.called {
+		t.Fatal("synthesizer should not be called when validation fails")
+	}
+}
+
 func TestNewAppOutDirEnv(t *testing.T) {
 	os.Setenv("PISYN_OUT_DIR", "/custom/out")
 	defer os.Unsetenv("PISYN_OUT_DIR")

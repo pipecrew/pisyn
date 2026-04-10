@@ -38,7 +38,9 @@ type Job struct {
 
 // NewJob creates a new job in the given stage.
 func NewJob(scope *Stage, name string) *Job {
-	checkDuplicateJobName(scope, name)
+	if err := checkDuplicateJobName(scope, name); err != nil {
+		panic(err.Error())
+	}
 	j := &Job{
 		JobName:    name,
 		Runner:     "ubuntu-latest",
@@ -61,7 +63,9 @@ func JobTemplate(name string) *Job {
 
 // Clone deep-copies this job and attaches it to the given stage.
 func (j *Job) Clone(scope *Stage, name string) *Job {
-	checkDuplicateJobName(scope, name)
+	if err := checkDuplicateJobName(scope, name); err != nil {
+		panic(err.Error())
+	}
 	c := &Job{
 		JobName:         name,
 		ImageName:       j.ImageName,
@@ -204,6 +208,7 @@ func (j *Job) removePhase(phase ActionPhase) {
 	}
 	j.Actions = filtered
 }
+
 // Needs declares job dependencies (jobs that must complete before this one).
 func (j *Job) Needs(jobs ...string) *Job { j.NeedsList = append(j.NeedsList, jobs...); return j }
 
@@ -230,6 +235,7 @@ func (j *Job) AllowFailureOnExitCodes(codes ...int) *Job {
 func (j *Job) IsAllowedToFail() bool {
 	return j.IsAllowFailure || (j.AllowFailureCfg != nil && j.AllowFailureCfg.Enabled)
 }
+
 // Timeout sets the job timeout in minutes.
 func (j *Job) Timeout(minutes int) *Job { j.TimeoutMin = minutes; return j }
 
@@ -262,6 +268,7 @@ func (j *Job) Dependencies(deps ...string) *Job {
 	j.DependencyList = append(j.DependencyList, deps...)
 	return j
 }
+
 // EmptyNeedsList sets an empty needs list so the job starts immediately.
 func (j *Job) EmptyNeedsList() *Job { j.EmptyNeeds = true; return j }
 
@@ -310,20 +317,21 @@ func (j *Job) OutputRef(name string) string {
 
 // helpers
 
-func checkDuplicateJobName(scope *Stage, name string) {
+func checkDuplicateJobName(scope *Stage, name string) error {
 	pipeline := scope.Construct.scope
 	if pipeline == nil {
-		return
+		return nil
 	}
 	for _, child := range pipeline.children {
 		if st, ok := child.node.(*Stage); ok {
 			for _, jc := range st.Construct.children {
 				if j, ok := jc.node.(*Job); ok && j.JobName == name {
-					panic(fmt.Sprintf("pisyn: duplicate job name %q in pipeline", name))
+					return fmt.Errorf("pisyn: duplicate job name %q in pipeline", name)
 				}
 			}
 		}
 	}
+	return nil
 }
 
 func cloneStrings(s []string) []string {
