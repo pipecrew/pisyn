@@ -614,6 +614,12 @@ Each example has its own README with a detailed explanation, the Mermaid pipelin
 go test ./...
 ```
 
+## Contributing
+
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code conventions, and the PR process. AI agents can find machine-readable project context in [AGENTS.md](AGENTS.md).
+
+Look for [`good first issue`](https://github.com/pipecrew/pisyn/labels/good%20first%20issue) to get started.
+
 ## Releasing
 
 Releases are automated via [release-please](https://github.com/googleapis/release-please) and [GoReleaser](https://goreleaser.com/).
