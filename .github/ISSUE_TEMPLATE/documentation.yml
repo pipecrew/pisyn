@@ -1,0 +1,32 @@
+name: 📖 Documentation
+description: Suggest updates or additions to the documentation.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: "📝 Help us improve the docs!"
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type of change
+      options:
+        - Missing documentation
+        - Incorrect documentation
+        - Unclear explanation
+        - New example needed
+        - Typo / formatting
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What needs to change?
+      description: Describe what's missing, wrong, or unclear.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested content
+      description: If you have specific wording or examples, include them here.

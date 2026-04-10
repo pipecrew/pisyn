@@ -1,0 +1,55 @@
+name: 🐛 Bug Report
+description: Report a bug in pisyn.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "🙏 Thanks for reporting a bug! Please fill out the sections below."
+  - type: input
+    id: version
+    attributes:
+      label: pisyn version
+      description: Output of `pisyn version`
+      placeholder: "pisyn dev (schema v1)"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Affected platform
+      options:
+        - GitLab CI
+        - GitHub Actions
+        - Tekton
+        - Local execution (pisyn run)
+        - CLI
+        - All
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal pipeline code or commands to reproduce the issue.
+      render: go
+  - type: textarea
+    id: output
+    attributes:
+      label: Actual output
+      description: Paste the generated YAML or error message.
+      render: yaml

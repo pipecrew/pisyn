@@ -1,0 +1,15 @@
+name: 💬 General Report
+description: Provide general feedback or inquiries.
+title: "[General]: "
+labels: ["general"]
+body:
+  - type: markdown
+    attributes:
+      value: "🗣️ Use this for anything that doesn't fit the other templates."
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What's on your mind?
+    validations:
+      required: true
