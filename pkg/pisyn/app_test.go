@@ -2,6 +2,7 @@ package pisyn
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -110,7 +111,7 @@ func TestRunNoRegisteredPlatforms(t *testing.T) {
 	}
 }
 
-func TestSynthReturnsErrorForDuplicateJobNames(t *testing.T) {
+func TestBuildReturnsErrorForDuplicateJobNames(t *testing.T) {
 	app := NewApp()
 	p := NewPipeline(app, "CI")
 	st1 := NewStage(p, "build")
@@ -120,16 +121,41 @@ func TestSynthReturnsErrorForDuplicateJobNames(t *testing.T) {
 	dup := NewJob(st2, "unit")
 	dup.JobName = "compile"
 
-	s := &fakeSynth{}
-	err := app.Synth(s)
+	err := app.Build(t.TempDir())
 	if err == nil {
 		t.Fatal("expected duplicate job name error")
 	}
 	if err.Error() != `pisyn: duplicate job name "compile" in pipeline "CI"` {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if s.called {
-		t.Fatal("synthesizer should not be called when validation fails")
+}
+
+func TestRunCatchesDuplicateBeforeWritingPipelineJSON(t *testing.T) {
+	clearRegistry()
+	defer clearRegistry()
+	os.Unsetenv("PISYN_PLATFORM")
+
+	f := &fakeSynth{}
+	RegisterPlatform("fake", func() Synthesizer { return f })
+
+	app := NewApp()
+	app.OutDir = t.TempDir()
+	p := NewPipeline(app, "CI")
+	st1 := NewStage(p, "build")
+	st2 := NewStage(p, "test")
+	NewJob(st1, "compile")
+	dup := NewJob(st2, "unit")
+	dup.JobName = "compile"
+
+	err := app.Run()
+	if err == nil {
+		t.Fatal("expected duplicate job name error from Run")
+	}
+	if f.called {
+		t.Fatal("synthesizer should not be called when Build fails")
+	}
+	if _, statErr := os.Stat(filepath.Join(app.OutDir, "pipeline.json")); !os.IsNotExist(statErr) {
+		t.Fatal("pipeline.json should not exist when validation fails")
 	}
 }
 
