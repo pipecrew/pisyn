@@ -141,3 +141,18 @@ func platformsFromEnv() []string {
 	}
 	return out
 }
+
+func (a *App) checkDuplicateJobNames() error {
+	for _, p := range a.Pipelines() {
+		seen := map[string]bool{}
+		for _, st := range p.Stages() {
+			for _, j := range st.Jobs() {
+				if seen[j.JobName] {
+					return fmt.Errorf("pisyn: duplicate job name %q in pipeline %q", j.JobName, p.Name)
+				}
+				seen[j.JobName] = true
+			}
+		}
+	}
+	return nil
+}
