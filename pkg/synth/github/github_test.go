@@ -316,3 +316,32 @@ func TestSynthGitHubOnPushTag(t *testing.T) {
 		t.Errorf("unexpected 'branches:' in tag-only trigger:\n%s", out)
 	}
 }
+
+func TestSynthGitHubEmojiScript(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI").OnPush("main")
+	st := pisyn.NewStage(p, "test")
+	pisyn.NewJob(st, "emoji").
+		Image("alpine:latest").
+		Script("echo 🐞 start\necho 🚨 end")
+
+	if err := app.Synth(github.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, _ := os.ReadFile(filepath.Join(dir, ".github", "workflows", "ci.yml"))
+	out := string(b)
+
+	if strings.Contains(out, `\U0001F41E`) || strings.Contains(out, `\U0001F6A8`) {
+		t.Errorf("emoji rendered as escape sequences:\n%s", out)
+	}
+	if !strings.Contains(out, "🐞") {
+		t.Errorf("missing 🐞 in output:\n%s", out)
+	}
+	if !strings.Contains(out, "🚨") {
+		t.Errorf("missing 🚨 in output:\n%s", out)
+	}
+}

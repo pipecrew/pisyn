@@ -220,3 +220,105 @@ func TestSynthGitLabOnPushTag(t *testing.T) {
 		t.Errorf("missing tag workflow rule in output:\n%s", out)
 	}
 }
+
+func TestSynthGitLabMultilineScript(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "test")
+	pisyn.NewJob(st, "multi").
+		Script("echo single line").
+		Script("line1\nline2\nline3").
+		BeforeScript("before1\nbefore2").
+		AfterScript("after1\nafter2")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, _ := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	out := string(b)
+
+	// Multi-line scripts should use block scalar style
+	if !strings.Contains(out, "- |-") && !strings.Contains(out, "- |") {
+		t.Errorf("expected block scalar for multi-line script:\n%s", out)
+	}
+	// Single-line should remain as plain scalar
+	if !strings.Contains(out, "- echo single line") {
+		t.Errorf("missing single-line script:\n%s", out)
+	}
+	// Multi-line content should be present
+	for _, want := range []string{"line1", "line2", "line3", "before1", "before2", "after1", "after2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
+func TestSynthGitLabEmojiScript(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "test")
+	pisyn.NewJob(st, "emoji").
+		Script("echo 🐞 start\necho 🚨 end")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, _ := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	out := string(b)
+
+	// Emoji should appear as actual characters, not \U escapes
+	if strings.Contains(out, `\U0001F41E`) || strings.Contains(out, `\U0001F6A8`) {
+		t.Errorf("emoji rendered as escape sequences:\n%s", out)
+	}
+	if !strings.Contains(out, "🐞") {
+		t.Errorf("missing 🐞 in output:\n%s", out)
+	}
+	if !strings.Contains(out, "🚨") {
+		t.Errorf("missing 🚨 in output:\n%s", out)
+	}
+	// Should be block scalar, not double-quoted
+	if strings.Contains(out, `"echo`) {
+		t.Errorf("multi-line emoji script should not be double-quoted:\n%s", out)
+	}
+}
+
+func TestSynthGitLabMixedEmojiAndPlainScripts(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "test")
+	pisyn.NewJob(st, "mixed").
+		Script("echo plain").
+		Script("echo 🐞 bug\necho fixed").
+		Script("echo also plain")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, _ := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	out := string(b)
+
+	if !strings.Contains(out, "- echo plain") {
+		t.Errorf("plain script missing:\n%s", out)
+	}
+	if !strings.Contains(out, "- echo also plain") {
+		t.Errorf("second plain script missing:\n%s", out)
+	}
+	if !strings.Contains(out, "🐞") {
+		t.Errorf("emoji missing:\n%s", out)
+	}
+	if strings.Contains(out, `\U`) {
+		t.Errorf("Unicode escapes should not appear:\n%s", out)
+	}
+}
