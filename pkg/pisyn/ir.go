@@ -69,6 +69,9 @@ type IRJob struct {
 
 // Build serializes the App's construct tree to pipeline.json in the given directory.
 func (a *App) Build(outDir string) error {
+	if err := a.checkDuplicateJobNames(); err != nil {
+		return err
+	}
 	ir := a.ToIR()
 	data, err := json.MarshalIndent(ir, "", "  ")
 	if err != nil {
