@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/pipecrew/pisyn/compare/v0.1.1...v0.2.0) (2026-04-14)
+
+
+### Features
+
+* add init command for reverse import of gitlab-ci files ([890752e](https://github.com/pipecrew/pisyn/commit/890752e5fb5fab7875edd470c79bacc03554b18c))
+* add init command for reverse import of gitlab-ci files ([21064c1](https://github.com/pipecrew/pisyn/commit/21064c17b6c5f20a9706ecfbbc5f344c11d8082f))
+
 ## [0.1.1](https://github.com/pipecrew/pisyn/compare/v0.1.0...v0.1.1) (2026-04-14)
 
 
