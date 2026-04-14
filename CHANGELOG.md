@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1](https://github.com/pipecrew/pisyn/compare/v0.1.0...v0.1.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* replace panic with error in duplicate job name check ([fc192d5](https://github.com/pipecrew/pisyn/commit/fc192d5cce42f2db7577e6c60c2276429fdf4701))
+* replace panic with error in duplicate job name check ([ef3c63d](https://github.com/pipecrew/pisyn/commit/ef3c63d399fd6e4f14a5be6036c76fdcf56922d5))
+* run duplicate-name validation in Build() and use Pipeline.Name ([5932596](https://github.com/pipecrew/pisyn/commit/59325962e020077eb9165c483706fff175ca1101))
+
 ## [0.1.0](https://github.com/pipecrew/pisyn/compare/v0.0.0...v0.1.0) (2026-04-09)
 
 
