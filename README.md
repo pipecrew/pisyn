@@ -31,7 +31,7 @@ pisyn fills the gap: **write pipelines in a real programming language (Go), with
 
 AWS CDK proved that "define infrastructure in code, synthesize to config" works at scale. pisyn applies the same pattern to CI/CD:
 
-![pisyn Architecture](docs/pisyn-architecture.drawio.png)
+![pisyn Architecture](docs/pisyn-architecture.png)
 
 - **App** → **Pipeline** → **Stage** → **Job** (like CDK's App → Stack → Construct)
 - Every construct takes its parent as the first argument, forming a tree
@@ -132,6 +132,22 @@ pisyn synth --validate                         # synthesize and validate output
 ```
 
 The CLI runs your Go pipeline code to build a construct tree, then synthesizes platform-specific YAML. Your code calls `app.Run()`, which builds `pipeline.json` and synthesizes all registered platforms.
+
+### Init (Reverse Import)
+
+Scaffold a pisyn `main.go` from an existing CI config file:
+
+```sh
+pisyn init --from .gitlab-ci.yml                     # print to stdout
+pisyn init --from .gitlab-ci.yml -o pipeline/main.go # write to file
+```
+
+The importer parses your existing pipeline and generates Go code using the pisyn API. It handles stages, variables (string/int/bool/expanded form), workflow rules, defaults, includes, hidden jobs (as `JobTemplate()`), and all common job fields. Multi-line scripts use raw string literals for readability.
+
+> [!CAUTION]
+> This is a "best effort" tool — it gets ~80% right. Complex features like YAML anchors, `extends` chains, and `include` content resolution are not supported. Review the generated code thoroughly and adjust as needed.
+
+Currently supports __GitLab CI__ only. _GitHub Actions_ support is planned.
 
 ### Build
 

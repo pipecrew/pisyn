@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pipecrew/pisyn/pkg/importer"
+	importgitlab "github.com/pipecrew/pisyn/pkg/importer/gitlab"
 	"github.com/pipecrew/pisyn/pkg/pisyn"
 	"github.com/pipecrew/pisyn/pkg/runner"
 	"github.com/pipecrew/pisyn/pkg/tui"
@@ -22,7 +24,7 @@ var pisynVersion = "dev"
 func main() {
 	root := &cobra.Command{
 		Use:           "pisyn",
-		Short:         "pisyn — the pipeline synthesizer. Define CI/CD pipelines in Go, synthesize to GitLab CI, GitHub Actions, or Tekton.",
+		Short:         "⚗️ pisyn — the pipeline synthesizer. Define CI/CD pipelines in Go, synthesize to GitLab CI, GitHub Actions, or Tekton.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -90,6 +92,16 @@ func main() {
 	diff.Flags().StringP("app", "a", ".", "path to the Go package containing the pipeline definition")
 	diff.Flags().StringP("out-dir", "o", "", "override output directory (default: pisyn.out)")
 	root.AddCommand(diff)
+
+	initCmd := &cobra.Command{
+		Use:   "init",
+		Short: "Scaffold a pisyn pipeline from an existing CI config file",
+		RunE:  runInit,
+	}
+	initCmd.Flags().String("from", "", "path to existing CI config (e.g. .gitlab-ci.yml)")
+	initCmd.Flags().StringP("output", "o", "", "output file path (default: stdout)")
+	_ = initCmd.MarkFlagRequired("from")
+	root.AddCommand(initCmd)
 
 	version := &cobra.Command{
 		Use:   "version",
@@ -410,5 +422,64 @@ func runDiff(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 	os.Exit(1)
+	return nil
+}
+
+// maxInitInputSize is the maximum file size accepted by pisyn init (10 MB).
+const maxInitInputSize = 10 * 1024 * 1024
+
+func runInit(cmd *cobra.Command, _ []string) error {
+	from, _ := cmd.Flags().GetString("from")
+	output, _ := cmd.Flags().GetString("output")
+
+	platform, err := importer.DetectPlatform(from)
+	if err != nil {
+		return err
+	}
+
+	// #7: check file size before reading into memory
+	info, err := os.Stat(from)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", from, err)
+	}
+	if info.Size() > maxInitInputSize {
+		return fmt.Errorf("input file %s is too large (%d bytes, max %d)", from, info.Size(), maxInitInputSize)
+	}
+
+	data, err := os.ReadFile(from)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", from, err)
+	}
+
+	// Fall back to content-based detection if path wasn't conclusive
+	if platform == "" {
+		platform = importer.DetectPlatformFromContent(data)
+	}
+
+	var code string
+	switch platform {
+	case "gitlab":
+		pipeline, err := importgitlab.Parse(data)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", from, err)
+		}
+		code = importgitlab.GenerateGo(pipeline)
+	default:
+		return fmt.Errorf("platform %q is not yet supported for init", platform)
+	}
+
+	if output == "" {
+		fmt.Print(code)
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(output, []byte(code), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", output, err)
+	}
+	fmt.Printf("⚗️ scaffolded pipeline → %s\n", output)
+	fmt.Println("⚠️  This is a best-effort import — review the generated code and adjust as needed.")
 	return nil
 }

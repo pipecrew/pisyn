@@ -7,6 +7,7 @@ import (
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
 	"github.com/pipecrew/pisyn/pkg/synth"
+	"gopkg.in/yaml.v3"
 )
 
 // Synthesizer generates GitLab CI configuration files.
@@ -326,14 +327,29 @@ func setServices(cfg map[string]any, job *pisyn.Job) {
 // (GitHub uses: directives) are intentionally skipped.
 func setScripts(cfg map[string]any, job *pisyn.Job) {
 	if before := job.BeforeScriptLines(); len(before) > 0 {
-		cfg["before_script"] = translateSlice(before)
+		cfg["before_script"] = scriptSequenceNode(translateSlice(before))
 	}
 	if scripts := job.ScriptLines(); len(scripts) > 0 {
-		cfg["script"] = translateSlice(scripts)
+		cfg["script"] = scriptSequenceNode(translateSlice(scripts))
 	}
 	if after := job.AfterScriptLines(); len(after) > 0 {
-		cfg["after_script"] = translateSlice(after)
+		cfg["after_script"] = scriptSequenceNode(translateSlice(after))
 	}
+}
+
+// scriptSequenceNode builds a yaml.Node sequence that forces multi-line strings
+// to use literal block scalar style (|), avoiding double-quoted escapes for
+// strings containing Unicode characters like emoji.
+func scriptSequenceNode(lines []string) *yaml.Node {
+	seq := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, line := range lines {
+		n := &yaml.Node{Kind: yaml.ScalarNode, Value: line}
+		if strings.Contains(line, "\n") {
+			n.Style = yaml.LiteralStyle
+		}
+		seq.Content = append(seq.Content, n)
+	}
+	return seq
 }
 
 // setNeeds renders job dependencies. An empty needs list (needs: []) means
