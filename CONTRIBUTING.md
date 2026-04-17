@@ -83,6 +83,16 @@ go test ./pkg/synth/gitlab/     # gitlab synthesizer only
 go test -cover ./...             # with coverage
 ```
 
+## Updating bundled schemas
+
+`pkg/validate/schemas/` holds the JSON schemas bundled into the binary via `//go:embed`. When upstream schemas change, refresh the local copies:
+
+```sh
+make update-schemas
+```
+
+That target downloads the latest `gitlab-ci.json` and `github-workflow.json` from their canonical sources (GitLab `gitlab-org/gitlab` and [json.schemastore.org](https://json.schemastore.org/)) into `pkg/validate/schemas/`. Review the diff with `git diff pkg/validate/schemas/` and commit the updated files.
+
 ## Commit Messages
 
 We use [Conventional Commits](https://www.conventionalcommits.org/) for automated releases:
