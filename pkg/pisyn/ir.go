@@ -65,6 +65,7 @@ type IRJob struct {
 	Rules           []Rule              `json:"rules,omitempty"`
 	Interruptible   *bool               `json:"interruptible,omitempty"`
 	Outputs         []JobOutput         `json:"outputs,omitempty"`
+	FetchDepth      int                 `json:"fetch_depth"`
 }
 
 // Build serializes the App's construct tree to pipeline.json in the given directory.
@@ -141,6 +142,7 @@ func jobToIR(job *Job) IRJob {
 		Rules:           job.Rules,
 		Interruptible:   job.Interruptible,
 		Outputs:         job.OutputList,
+		FetchDepth:      job.FetchDepth,
 	}
 }
 
@@ -227,5 +229,6 @@ func irJobToJob(irj IRJob) *Job {
 		Rules:           irj.Rules,
 		Interruptible:   irj.Interruptible,
 		OutputList:      irj.Outputs,
+		FetchDepth:      irj.FetchDepth,
 	}
 }
