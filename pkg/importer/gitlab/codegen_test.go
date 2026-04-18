@@ -299,3 +299,114 @@ test:
 	}
 	t.Error("test job not found")
 }
+
+func TestParse_CacheKeyObjectForm(t *testing.T) {
+	yml := []byte(`
+stages:
+  - test
+test-job:
+  stage: test
+  image: python:3.12
+  cache:
+    key:
+      files:
+        - poetry.lock
+        - uv.lock
+    fallback_keys:
+      - py-fallback
+    paths:
+      - .local
+  script:
+    - echo test
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "test-job" {
+				if job.Cache == nil {
+					t.Fatal("expected cache to be set")
+				}
+				if job.Cache.Key != "poetry.lock-uv.lock" {
+					t.Errorf("cache key = %q, want %q", job.Cache.Key, "poetry.lock-uv.lock")
+				}
+				if len(job.Cache.Paths) != 1 || job.Cache.Paths[0] != ".local" {
+					t.Errorf("cache paths = %v, want [.local]", job.Cache.Paths)
+				}
+				return
+			}
+		}
+	}
+	t.Error("test-job not found")
+}
+
+func TestParse_CacheKeyWithPrefix(t *testing.T) {
+	yml := []byte(`
+stages:
+  - test
+test-job:
+  stage: test
+  cache:
+    key:
+      files:
+        - go.sum
+      prefix: go-mod
+    paths:
+      - /go/pkg/mod
+  script:
+    - echo test
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "test-job" {
+				if job.Cache == nil {
+					t.Fatal("expected cache to be set")
+				}
+				if job.Cache.Key != "go-mod-go.sum" {
+					t.Errorf("cache key = %q, want %q", job.Cache.Key, "go-mod-go.sum")
+				}
+				return
+			}
+		}
+	}
+	t.Error("test-job not found")
+}
+
+func TestParse_CacheKeyStringForm(t *testing.T) {
+	yml := []byte(`
+stages:
+  - test
+test-job:
+  stage: test
+  cache:
+    key: my-key
+    paths:
+      - .cache
+  script:
+    - echo test
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "test-job" {
+				if job.Cache == nil {
+					t.Fatal("expected cache to be set")
+				}
+				if job.Cache.Key != "my-key" {
+					t.Errorf("cache key = %q, want %q", job.Cache.Key, "my-key")
+				}
+				return
+			}
+		}
+	}
+	t.Error("test-job not found")
+}

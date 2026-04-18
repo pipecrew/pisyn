@@ -47,6 +47,7 @@ func buildPipeline(app *ps.App) {
 		AllowFailure().
 		Script("golangci-lint run --timeout 5m ./...")
 
+	// AllowFailure: known unfixed vulns in github.com/docker/docker (see .govulncheck-known.md)
 	goBase.Clone(lint, "vulncheck").
 		AddRule(ps.Rule{If: ps.VarMRID, When: "always"}).
 		AddRule(ps.Rule{When: "never"}).
