@@ -158,8 +158,9 @@ type artifactsYAML struct {
 }
 
 type cacheYAML struct {
-	Key   string   `yaml:"key"`
-	Paths []string `yaml:"paths"`
+	Key          yaml.Node `yaml:"key"`
+	Paths        []string  `yaml:"paths"`
+	FallbackKeys []string  `yaml:"fallback_keys"`
 }
 
 type parallelYAML struct {
@@ -241,7 +242,7 @@ func parseJob(name string, node *yaml.Node) (*parsedJob, error) {
 
 	// Cache
 	if j.Cache != nil {
-		ir.Cache = &pisyn.Cache{Key: j.Cache.Key, Paths: j.Cache.Paths}
+		ir.Cache = &pisyn.Cache{Key: parseCacheKey(&j.Cache.Key), Paths: j.Cache.Paths}
 	}
 
 	// Services
@@ -460,6 +461,28 @@ func parseService(node *yaml.Node) pisyn.Service {
 		return pisyn.Service{Image: svc.Name, Alias: svc.Alias, Variables: svc.Variables}
 	}
 	return pisyn.Service{}
+}
+
+func parseCacheKey(node *yaml.Node) string {
+	if node.Kind == 0 {
+		return ""
+	}
+	if node.Kind == yaml.ScalarNode {
+		return node.Value
+	}
+	// Object form: {files: [...], prefix: "..."}
+	var obj struct {
+		Files  []string `yaml:"files"`
+		Prefix string   `yaml:"prefix"`
+	}
+	if err := node.Decode(&obj); err == nil && len(obj.Files) > 0 {
+		key := strings.Join(obj.Files, "-")
+		if obj.Prefix != "" {
+			key = obj.Prefix + "-" + key
+		}
+		return key
+	}
+	return ""
 }
 
 func parseEnvironment(node *yaml.Node, ir *pisyn.IRJob) {
