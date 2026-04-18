@@ -65,6 +65,7 @@ type IRJob struct {
 	Rules           []Rule              `json:"rules,omitempty"`
 	Interruptible   *bool               `json:"interruptible,omitempty"`
 	Outputs         []JobOutput         `json:"outputs,omitempty"`
+	FetchDepth      *int                `json:"fetch_depth"`
 }
 
 // Build serializes the App's construct tree to pipeline.json in the given directory.
@@ -141,7 +142,17 @@ func jobToIR(job *Job) IRJob {
 		Rules:           job.Rules,
 		Interruptible:   job.Interruptible,
 		Outputs:         job.OutputList,
+		FetchDepth:      jobFetchDepthToIR(job.FetchDepth),
 	}
+}
+
+// jobFetchDepthToIR translates Job.FetchDepth's -1 sentinel ("unset") into a
+// nil *int so the IR distinguishes "unset" from 0 ("full history").
+func jobFetchDepthToIR(depth int) *int {
+	if depth < 0 {
+		return nil
+	}
+	return &depth
 }
 
 // LoadIR reads pipeline.json and returns IR structs.
@@ -227,5 +238,15 @@ func irJobToJob(irj IRJob) *Job {
 		Rules:           irj.Rules,
 		Interruptible:   irj.Interruptible,
 		OutputList:      irj.Outputs,
+		FetchDepth:      irFetchDepthToJob(irj.FetchDepth),
 	}
+}
+
+// irFetchDepthToJob restores Job.FetchDepth's -1 sentinel ("unset") when the
+// IR field is nil; otherwise the stored depth round-trips verbatim.
+func irFetchDepthToJob(depth *int) int {
+	if depth == nil {
+		return -1
+	}
+	return *depth
 }
