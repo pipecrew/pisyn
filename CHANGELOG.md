@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/pipecrew/pisyn/compare/v0.2.0...v0.2.1) (2026-04-18)
+
+
+### Bug Fixes
+
+* map PISYN_PROJECT_URL to CI_PROJECT_URL instead of CI_REPOSITORY_URL ([ab0305a](https://github.com/pipecrew/pisyn/commit/ab0305abfd85d9ad29976b734d72cb66bc00b6f1))
+* map PISYN_PROJECT_URL to CI_PROJECT_URL instead of CI_REPOSITORY_URL ([8ea00d1](https://github.com/pipecrew/pisyn/commit/8ea00d13c080a943e51e22f45fff15e12cd542c3)), closes [#11](https://github.com/pipecrew/pisyn/issues/11)
+
 ## [0.2.0](https://github.com/pipecrew/pisyn/compare/v0.1.1...v0.2.0) (2026-04-14)
 
 
