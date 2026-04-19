@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/pipecrew/pisyn/compare/v0.2.1...v0.2.2) (2026-04-18)
+
+
+### Bug Fixes
+
+* **importer:** handle GitLab CI cache key object form ([311fc1f](https://github.com/pipecrew/pisyn/commit/311fc1f038def0767c309f0b5c64072685f3d1e8))
+
 ## [0.2.1](https://github.com/pipecrew/pisyn/compare/v0.2.0...v0.2.1) (2026-04-18)
 
 
