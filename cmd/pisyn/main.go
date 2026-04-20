@@ -347,7 +347,7 @@ func runDiff(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }() // best-effort cleanup
 
 	goRun := exec.Command("go", "run", appPath)
 	goRun.Stderr = os.Stderr

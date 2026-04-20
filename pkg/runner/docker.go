@@ -53,7 +53,7 @@ func NewDockerRunner(workDir string) (*DockerRunner, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if _, err := cli.Ping(ctx); err != nil {
-		cli.Close()
+		_ = cli.Close() // best-effort cleanup on connection failure
 		return nil, fmt.Errorf("cannot connect to Docker: %w (is Docker running?)", err)
 	}
 
@@ -95,7 +95,7 @@ const helperImage = "busybox:latest"
 
 // ensureHelperImage makes sure the helper image used for workspace copy is available.
 func (d *DockerRunner) ensureHelperImage(ctx context.Context) error {
-	_, _, err := d.cli.ImageInspectWithRaw(ctx, helperImage)
+	_, err := d.cli.ImageInspect(ctx, helperImage)
 	if err == nil {
 		return nil
 	}
@@ -103,8 +103,8 @@ func (d *DockerRunner) ensureHelperImage(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("pull helper image %s: %w", helperImage, err)
 	}
-	io.Copy(io.Discard, reader)
-	reader.Close()
+	_, _ = io.Copy(io.Discard, reader) // drain pull response
+	_ = reader.Close()
 	return nil
 }
 
@@ -129,7 +129,7 @@ func (d *DockerRunner) CreateWorkspace(ctx context.Context, name string) error {
 	if err != nil {
 		return fmt.Errorf("create workspace helper: %w", err)
 	}
-	defer d.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+	defer func() { _ = d.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
 
 	// Tar the project directory and copy into the container's /workspace
 	tarBuf, err := tarDir(d.workDir)
@@ -218,7 +218,7 @@ func (d *DockerRunner) RunJob(ctx context.Context, job *pisyn.Job, extraEnv map[
 		return fmt.Errorf("create container: %w", err)
 	}
 	containerID := resp.ID
-	defer d.cli.ContainerRemove(context.Background(), containerID, container.RemoveOptions{Force: true})
+	defer func() { _ = d.cli.ContainerRemove(context.Background(), containerID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
 
 	// Start container
 	if err := d.cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
@@ -232,7 +232,7 @@ func (d *DockerRunner) RunJob(ctx context.Context, job *pisyn.Job, extraEnv map[
 	if err != nil {
 		return fmt.Errorf("attach logs: %w", err)
 	}
-	defer logReader.Close()
+	defer func() { _ = logReader.Close() }() // best-effort cleanup
 
 	// Stream logs in background
 	logDone := make(chan struct{})
@@ -253,14 +253,14 @@ func (d *DockerRunner) RunJob(ctx context.Context, job *pisyn.Job, extraEnv map[
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
-		d.cli.ContainerStop(context.Background(), containerID, container.StopOptions{})
+		_ = d.cli.ContainerStop(context.Background(), containerID, container.StopOptions{}) // best-effort on timeout
 		return ctx.Err()
 	}
 }
 
 // ensureImage pulls the image only if not available locally.
 func (d *DockerRunner) ensureImage(ctx context.Context, img, jobName string, events chan<- Event) error {
-	_, _, err := d.cli.ImageInspectWithRaw(ctx, img)
+	_, err := d.cli.ImageInspect(ctx, img)
 	if err == nil {
 		events <- Event{Type: EventJobLog, JobName: jobName, Log: fmt.Sprintf("Using cached image %s", img)}
 		return nil // already available
@@ -270,8 +270,8 @@ func (d *DockerRunner) ensureImage(ctx context.Context, img, jobName string, eve
 	if err != nil {
 		return fmt.Errorf("pull %s: %w", img, err)
 	}
-	io.Copy(io.Discard, reader)
-	reader.Close()
+	_, _ = io.Copy(io.Discard, reader) // drain pull response
+	_ = reader.Close()
 	return nil
 }
 
@@ -315,8 +315,8 @@ func (d *DockerRunner) startServices(ctx context.Context, job *pisyn.Job, events
 
 func (d *DockerRunner) stopContainers(ctx context.Context, ids []string) {
 	for _, id := range ids {
-		d.cli.ContainerStop(ctx, id, container.StopOptions{})
-		d.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: true})
+		_ = d.cli.ContainerStop(ctx, id, container.StopOptions{})       // best-effort cleanup
+		_ = d.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: true}) // best-effort cleanup
 	}
 }
 
@@ -394,8 +394,8 @@ func (d *DockerRunner) streamLogs(ctx context.Context, reader io.Reader, jobName
 	// stdcopy.StdCopy demuxes; we merge stdout+stderr into one writer.
 	pr, pw := io.Pipe()
 	go func() {
-		stdcopy.StdCopy(pw, pw, reader)
-		pw.Close()
+		_, _ = stdcopy.StdCopy(pw, pw, reader) // demux docker stream; errors surface as EOF
+		_ = pw.Close()                         // signal scanner to stop
 	}()
 
 	scanner := bufio.NewScanner(pr)
@@ -403,7 +403,7 @@ func (d *DockerRunner) streamLogs(ctx context.Context, reader io.Reader, jobName
 		select {
 		case events <- Event{Type: EventJobLog, JobName: jobName, Log: scanner.Text()}:
 		case <-ctx.Done():
-			pr.Close() // unblock stdcopy → pw.Close() → scanner exits
+			_ = pr.Close() // unblock stdcopy → pw.Close() → scanner exits
 			return
 		}
 	}
@@ -444,13 +444,13 @@ func (d *DockerRunner) readFileFromVolume(ctx context.Context, filePath string) 
 	if err != nil {
 		return ""
 	}
-	defer d.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+	defer func() { _ = d.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
 
 	reader, _, err := d.cli.CopyFromContainer(ctx, resp.ID, "/workspace/"+filePath)
 	if err != nil {
 		return ""
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }() // best-effort cleanup
 
 	tr := tar.NewReader(reader)
 	if _, err := tr.Next(); err != nil {
@@ -467,7 +467,6 @@ func (d *DockerRunner) readFileFromVolume(ctx context.Context, filePath string) 
 func tarDir(dir string) (io.Reader, error) {
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
-	defer tw.Close()
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -499,12 +498,15 @@ func tarDir(dir string) (io.Reader, error) {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }() // read-only, safe to ignore
 		_, err = io.Copy(tw, f)
 		return err
 	})
 	if err != nil {
 		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, fmt.Errorf("finalize tar: %w", err)
 	}
 	return &buf, nil
 }

@@ -166,7 +166,7 @@ func TestLoadIR_FromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "pipeline.json")
 	data := `{"pipelines":[{"name":"test","stages":[{"name":"s","jobs":[{"name":"j","image":"alpine"}]}]}]}`
-	os.WriteFile(path, []byte(data), 0o644)
+	os.WriteFile(path, []byte(data), 0o644) //nolint:errcheck // test helper
 
 	ir, err := LoadIR(path)
 	if err != nil {
@@ -231,7 +231,7 @@ func TestIR_MultiPipelineMultiStage(t *testing.T) {
 	// Round-trip
 	data, _ := json.Marshal(ir)
 	var loaded IRApp
-	json.Unmarshal(data, &loaded)
+	if err := json.Unmarshal(data, &loaded); err != nil { t.Fatal(err) }
 	app2 := loaded.ToApp()
 
 	if len(app2.Pipelines()) != 2 {
@@ -316,7 +316,7 @@ func TestIR_ScriptLinesPreserved(t *testing.T) {
 	ir := app.ToIR()
 	data, _ := json.Marshal(ir)
 	var loaded IRApp
-	json.Unmarshal(data, &loaded)
+	if err := json.Unmarshal(data, &loaded); err != nil { t.Fatal(err) }
 	app2 := loaded.ToApp()
 
 	j := app2.Pipelines()[0].Stages()[0].Jobs()[0]
@@ -357,7 +357,7 @@ func TestIR_TriggersPreserved(t *testing.T) {
 	ir := app.ToIR()
 	data, _ := json.Marshal(ir)
 	var loaded IRApp
-	json.Unmarshal(data, &loaded)
+	if err := json.Unmarshal(data, &loaded); err != nil { t.Fatal(err) }
 	app2 := loaded.ToApp()
 
 	p := app2.Pipelines()[0]
@@ -383,7 +383,7 @@ func TestIR_OnPushTagPreserved(t *testing.T) {
 	ir := app.ToIR()
 	data, _ := json.Marshal(ir)
 	var loaded IRApp
-	json.Unmarshal(data, &loaded)
+	if err := json.Unmarshal(data, &loaded); err != nil { t.Fatal(err) }
 	app2 := loaded.ToApp()
 
 	p := app2.Pipelines()[0]
@@ -402,7 +402,7 @@ func TestLoadIR_FileNotFound(t *testing.T) {
 func TestLoadIR_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "pipeline.json")
-	os.WriteFile(path, []byte("not json"), 0o644)
+	os.WriteFile(path, []byte("not json"), 0o644) //nolint:errcheck // test helper
 
 	_, err := LoadIR(path)
 	if err == nil {

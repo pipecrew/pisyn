@@ -145,7 +145,7 @@ func concat(slices ...[]string) []string {
 	return result
 }
 
-func writeYAMLFile(dir, name string, docs []map[string]any) error {
+func writeYAMLFile(dir, name string, docs []map[string]any) (err error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -153,7 +153,11 @@ func writeYAMLFile(dir, name string, docs []map[string]any) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	enc := yaml.NewEncoder(f)
 	for _, doc := range docs {

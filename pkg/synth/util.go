@@ -117,14 +117,14 @@ func fixQuotedMultilineScalars(s string) string {
 		content = strings.ReplaceAll(content, placeholder, "\\")
 		content = unicodeEscapeRe.ReplaceAllStringFunc(content, func(m string) string {
 			var cp int
-			fmt.Sscanf(m, "\\U%08x", &cp)
+			_, _ = fmt.Sscanf(m, "\\U%08x", &cp)
 			return string(rune(cp))
 		})
 
 		// Determine base indent for block content.
 		// For "    - ", base is "    " and block indent is "      " (base + 2)
 		// For "              run: ", base is "              " and block indent is base + 2
-		baseIndent := prefix
+		var baseIndent string
 		if strings.HasSuffix(prefix, "- ") {
 			baseIndent = strings.TrimSuffix(prefix, "- ")
 		} else {
