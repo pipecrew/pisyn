@@ -178,13 +178,13 @@ func TestConstructAccessors(t *testing.T) {
 	s := NewStage(p, "test")
 	NewJob(s, "unit")
 
-	if app.Construct.ID() != "App" {
-		t.Errorf("app id = %q", app.Construct.ID())
+	if app.ID() != "App" {
+		t.Errorf("app id = %q", app.ID())
 	}
-	if len(app.Construct.Children()) != 1 {
+	if len(app.Children()) != 1 {
 		t.Error("app should have 1 child")
 	}
-	if app.Construct.Node() != app {
+	if app.Node() != app {
 		t.Error("app node should be self")
 	}
 }

@@ -318,13 +318,13 @@ func (j *Job) OutputRef(name string) string {
 // helpers
 
 func checkDuplicateJobName(scope *Stage, name string) error {
-	pipeline := scope.Construct.scope
+	pipeline := scope.scope
 	if pipeline == nil {
 		return nil
 	}
 	for _, child := range pipeline.children {
 		if st, ok := child.node.(*Stage); ok {
-			for _, jc := range st.Construct.children {
+			for _, jc := range st.children {
 				if j, ok := jc.node.(*Job); ok && j.JobName == name {
 					return fmt.Errorf("pisyn: duplicate job name %q in pipeline", name)
 				}

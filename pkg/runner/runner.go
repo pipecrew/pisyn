@@ -59,14 +59,14 @@ func Run(ctx context.Context, plan *ExecutionPlan, opts RunOpts) (chan Event, er
 
 	go func() {
 		defer close(events)
-		defer docker.Close()
+		defer func() { _ = docker.Close() }() // best-effort cleanup
 
 		netName := fmt.Sprintf("pisyn-run-%d", time.Now().UnixNano())
 		if err := docker.CreateNetwork(ctx, netName); err != nil {
 			events <- Event{Type: EventRunComplete, Err: err}
 			return
 		}
-		defer docker.RemoveNetwork(context.Background())
+		defer func() { _ = docker.RemoveNetwork(context.Background()) }() // best-effort cleanup
 
 		// Copy project into isolated workspace volume
 		wsName := fmt.Sprintf("pisyn-workspace-%d", time.Now().UnixNano())
@@ -75,7 +75,7 @@ func Run(ctx context.Context, plan *ExecutionPlan, opts RunOpts) (chan Event, er
 			events <- Event{Type: EventRunComplete, Err: err}
 			return
 		}
-		defer docker.RemoveWorkspace(context.Background())
+		defer func() { _ = docker.RemoveWorkspace(context.Background()) }() // best-effort cleanup
 
 		// Emit plan warnings
 		for _, warning := range plan.Warnings {

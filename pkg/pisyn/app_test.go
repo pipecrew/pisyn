@@ -40,7 +40,7 @@ func TestRegisterPlatformLowercase(t *testing.T) {
 func TestRunAllRegistered(t *testing.T) {
 	clearRegistry()
 	defer clearRegistry()
-	os.Unsetenv("PISYN_PLATFORM")
+	t.Setenv("PISYN_PLATFORM", "")
 
 	f := &fakeSynth{}
 	RegisterPlatform("fake", func() Synthesizer { return f })
@@ -71,8 +71,7 @@ func TestRunWithPlatformEnv(t *testing.T) {
 		return s
 	})
 
-	os.Setenv("PISYN_PLATFORM", "a")
-	defer os.Unsetenv("PISYN_PLATFORM")
+	t.Setenv("PISYN_PLATFORM", "a")
 
 	app := NewApp()
 	app.OutDir = t.TempDir()
@@ -91,8 +90,7 @@ func TestRunUnknownPlatform(t *testing.T) {
 	clearRegistry()
 	defer clearRegistry()
 
-	os.Setenv("PISYN_PLATFORM", "nonexistent")
-	defer os.Unsetenv("PISYN_PLATFORM")
+	t.Setenv("PISYN_PLATFORM", "nonexistent")
 
 	app := NewApp()
 	if err := app.Run(); err == nil {
@@ -103,7 +101,7 @@ func TestRunUnknownPlatform(t *testing.T) {
 func TestRunNoRegisteredPlatforms(t *testing.T) {
 	clearRegistry()
 	defer clearRegistry()
-	os.Unsetenv("PISYN_PLATFORM")
+	t.Setenv("PISYN_PLATFORM", "")
 
 	app := NewApp()
 	if err := app.Run(); err == nil {
@@ -133,7 +131,7 @@ func TestBuildReturnsErrorForDuplicateJobNames(t *testing.T) {
 func TestRunCatchesDuplicateBeforeWritingPipelineJSON(t *testing.T) {
 	clearRegistry()
 	defer clearRegistry()
-	os.Unsetenv("PISYN_PLATFORM")
+	t.Setenv("PISYN_PLATFORM", "")
 
 	f := &fakeSynth{}
 	RegisterPlatform("fake", func() Synthesizer { return f })
@@ -160,8 +158,7 @@ func TestRunCatchesDuplicateBeforeWritingPipelineJSON(t *testing.T) {
 }
 
 func TestNewAppOutDirEnv(t *testing.T) {
-	os.Setenv("PISYN_OUT_DIR", "/custom/out")
-	defer os.Unsetenv("PISYN_OUT_DIR")
+	t.Setenv("PISYN_OUT_DIR", "/custom/out")
 
 	app := NewApp()
 	if app.OutDir != "/custom/out" {
@@ -170,7 +167,7 @@ func TestNewAppOutDirEnv(t *testing.T) {
 }
 
 func TestNewAppOutDirDefault(t *testing.T) {
-	os.Unsetenv("PISYN_OUT_DIR")
+	t.Setenv("PISYN_OUT_DIR", "")
 
 	app := NewApp()
 	if app.OutDir != "pisyn.out" {
@@ -179,8 +176,7 @@ func TestNewAppOutDirDefault(t *testing.T) {
 }
 
 func TestPlatformsFromEnvMultiple(t *testing.T) {
-	os.Setenv("PISYN_PLATFORM", "gitlab, github , tekton")
-	defer os.Unsetenv("PISYN_PLATFORM")
+	t.Setenv("PISYN_PLATFORM", "gitlab, github , tekton")
 
 	got := platformsFromEnv()
 	if len(got) != 3 || got[0] != "gitlab" || got[1] != "github" || got[2] != "tekton" {

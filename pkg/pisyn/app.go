@@ -105,14 +105,14 @@ func (a *App) Graph() string {
 			var currentJobs []string
 			for _, job := range stage.Jobs() {
 				id := sanitizeID(job.JobName)
-				b.WriteString(fmt.Sprintf("    %s[%q]\n", id, job.JobName))
+				fmt.Fprintf(&b, "    %s[%q]\n", id, job.JobName)
 				if len(job.NeedsList) > 0 {
 					for _, need := range job.NeedsList {
-						b.WriteString(fmt.Sprintf("    %s --> %s\n", sanitizeID(need), id))
+						fmt.Fprintf(&b, "    %s --> %s\n", sanitizeID(need), id)
 					}
 				} else if len(prevStageJobs) > 0 {
 					for _, prev := range prevStageJobs {
-						b.WriteString(fmt.Sprintf("    %s --> %s\n", prev, id))
+						fmt.Fprintf(&b, "    %s --> %s\n", prev, id)
 					}
 				}
 				currentJobs = append(currentJobs, id)
