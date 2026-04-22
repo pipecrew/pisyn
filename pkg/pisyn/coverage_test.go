@@ -5,22 +5,39 @@ import "testing"
 func TestGraph(t *testing.T) {
 	app := NewApp()
 	p := NewPipeline(app, "CI")
-	s1 := NewStage(p, "build-steps")
-	NewJob(s1, "compile-go").Image("alpine")
-	s2 := NewStage(p, "test stage.one")
-	NewJob(s2, "unit.tests").Image("alpine")
+	s1 := NewStage(p, "build")
+	NewJob(s1, "compile").Image("alpine")
+	s2 := NewStage(p, "test")
+	NewJob(s2, "unit").Image("alpine").Needs("compile")
 
 	g := app.Graph()
 	want := "graph LR\n" +
-		"    subgraph build_steps[\"build-steps\"]\n" +
-		"        compile_go[\"compile-go\"]\n" +
+		"    subgraph stage_build[\"build\"]\n" +
+		"        compile[\"compile\"]\n" +
 		"    end\n" +
-		"    subgraph test_stage_one[\"test stage.one\"]\n" +
-		"        unit_tests[\"unit.tests\"]\n" +
+		"    subgraph stage_test[\"test\"]\n" +
+		"        unit[\"unit\"]\n" +
 		"    end\n" +
-		"    compile_go --> unit_tests\n"
+		"    compile --> unit\n"
 	if g != want {
-		t.Errorf("Graph() = %q, want %q", g, want)
+		t.Errorf("Graph() =\n%s\nwant:\n%s", g, want)
+	}
+}
+
+func TestGraphSubgraphIDNoCollision(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	// Stage and job share the same name — subgraph must use a different ID.
+	s := NewStage(p, "deploy")
+	NewJob(s, "deploy").Image("alpine")
+
+	g := app.Graph()
+	want := "graph LR\n" +
+		"    subgraph stage_deploy[\"deploy\"]\n" +
+		"        deploy[\"deploy\"]\n" +
+		"    end\n"
+	if g != want {
+		t.Errorf("Graph() =\n%s\nwant:\n%s", g, want)
 	}
 }
 
