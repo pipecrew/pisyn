@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/pipecrew/pisyn/compare/v0.2.2...v0.3.0) (2026-04-22)
+
+
+### Features
+
+* **graph:** group jobs by stage using Mermaid subgraph ([24e54a9](https://github.com/pipecrew/pisyn/commit/24e54a9637e8b0420e3627868d4b1c58beb82156)), closes [#10](https://github.com/pipecrew/pisyn/issues/10)
+
+
+### Bug Fixes
+
+* cycle in graph namings ([20cf6ea](https://github.com/pipecrew/pisyn/commit/20cf6eaccd85221530ca1049cce1fc9ef4cd61f9))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.6 ([2334f36](https://github.com/pipecrew/pisyn/commit/2334f361e9dcf64467cc00fa12fb344504ff4ca2))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.6 ([f228e59](https://github.com/pipecrew/pisyn/commit/f228e593eecf30e9109bcbd16f3e8675696feaaa))
+* **pisyn:** deep-copy RetryCfg, AllowFailureCfg, Interruptible in Job.Clone ([f7f6e2b](https://github.com/pipecrew/pisyn/commit/f7f6e2b59da8aace2d6c2e60b66bb586dab88b5d))
+* **pisyn:** deep-copy RetryCfg, AllowFailureCfg, Interruptible in Job.Clone ([b091254](https://github.com/pipecrew/pisyn/commit/b0912541c8e5ed4b93f837afad9ab1f5fb07fee3))
+
 ## [0.2.2](https://github.com/pipecrew/pisyn/compare/v0.2.1...v0.2.2) (2026-04-18)
 
 
