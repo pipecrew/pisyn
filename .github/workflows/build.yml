@@ -9,31 +9,30 @@ env:
     GOFLAGS: -trimpath
 jobs:
     lint-go:
-        container:
-            image: golangci/golangci-lint:v2.11.3-alpine
-            options: --entrypoint ""
-        continue-on-error: true
-        if: ${{ github.event.pull_request.number }}
         runs-on: ubuntu-latest
+        if: ${{ github.event.pull_request.number }}
+        continue-on-error: true
+        container:
+            image: golangci/golangci-lint:v2.11.4-alpine
+            options: --entrypoint ""
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
             - name: Run
               run: golangci-lint run --timeout 5m ./...
     vulncheck:
+        if: ${{ github.event.pull_request.number }}
+        continue-on-error: true
         container:
             image: golang:1.26
-        continue-on-error: true
-        if: ${{ github.event.pull_request.number }}
-        runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -41,17 +40,18 @@ jobs:
               run: |-
                 go install golang.org/x/vuln/cmd/govulncheck@latest
                 govulncheck ./...
+        runs-on: ubuntu-latest
     unit-tests:
-        container:
-            image: golang:1.26
+        runs-on: ubuntu-latest
         needs:
             - lint-go
             - vulncheck
-        runs-on: ubuntu-latest
+        container:
+            image: golang:1.26
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -59,26 +59,26 @@ jobs:
               run: go test -v -cover -coverprofile=coverage.out -covermode=atomic ./...
             - if: always()
               name: Upload artifacts
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                 name: unit-tests-artifacts
                 path: coverage.out
     gen-version:
-        container:
-            image: golang:1.26
+        runs-on: ubuntu-latest
         needs:
             - unit-tests
         outputs:
             version: ${{ steps.outputs.outputs.version }}
-        runs-on: ubuntu-latest
+        container:
+            image: golang:1.26
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
               with:
                 fetch-depth: "0"
             - name: Mark workspace as safe directory
               run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -88,15 +88,14 @@ jobs:
               name: Set outputs
               run: cat version.env >> $GITHUB_OUTPUT
     build-binary:
-        container:
-            image: golang:1.26
         needs:
             - gen-version
-        runs-on: ubuntu-latest
+        container:
+            image: golang:1.26
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -106,7 +105,8 @@ jobs:
               run: go build -buildvcs=false -ldflags "-s -w -X main.pisynVersion=${{ needs.gen-version.outputs.version }}" -o bin/pisyn ./cmd/pisyn
             - if: always()
               name: Upload artifacts
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                 name: build-binary-artifacts
                 path: bin/
+        runs-on: ubuntu-latest

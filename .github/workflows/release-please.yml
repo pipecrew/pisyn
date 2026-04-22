@@ -1,18 +1,18 @@
 name: Release Please
 on:
+    workflow_dispatch: {}
     push:
         branches:
             - main
-    workflow_dispatch: {}
 jobs:
     release-please:
-        container:
-            image: node:22-alpine
+        runs-on: ubuntu-latest
         env:
             RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
-        runs-on: ubuntu-latest
+        container:
+            image: node:22-alpine
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
             - name: Run
               run: |-
                 npx release-please release-pr --repo-url=${{ github.server_url }}/${{ github.repository }} --token=$RELEASE_PAT --release-type=go --pull-request-header=":robot: new release" --pull-request-footer=" "
