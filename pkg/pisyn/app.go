@@ -104,7 +104,7 @@ func (a *App) Graph() string {
 		var prevStageJobs []string
 		for _, stage := range pipeline.Stages() {
 			var currentJobs []string
-			fmt.Fprintf(&b, "    subgraph %s[%q]\n", sanitizeID(stage.Name), stage.Name)
+			fmt.Fprintf(&b, "    subgraph stage_%s[%q]\n", sanitizeID(stage.Name), stage.Name)
 			for _, job := range stage.Jobs() {
 				id := sanitizeID(job.JobName)
 				fmt.Fprintf(&b, "        %s[%q]\n", id, job.JobName)
