@@ -5,20 +5,22 @@ import "testing"
 func TestGraph(t *testing.T) {
 	app := NewApp()
 	p := NewPipeline(app, "CI")
-	s1 := NewStage(p, "build")
-	NewJob(s1, "compile").Image("alpine")
-	s2 := NewStage(p, "test")
-	NewJob(s2, "unit").Image("alpine").Needs("compile")
+	s1 := NewStage(p, "build-steps")
+	NewJob(s1, "compile-go").Image("alpine")
+	s2 := NewStage(p, "test stage.one")
+	NewJob(s2, "unit.tests").Image("alpine")
 
 	g := app.Graph()
-	if g == "" {
-		t.Fatal("graph is empty")
-	}
-	if !contains(g, "compile") || !contains(g, "unit") {
-		t.Errorf("graph missing jobs: %s", g)
-	}
-	if !contains(g, "-->") {
-		t.Error("graph missing edges")
+	want := "graph LR\n" +
+		"    subgraph build_steps[\"build-steps\"]\n" +
+		"        compile_go[\"compile-go\"]\n" +
+		"    end\n" +
+		"    subgraph test_stage_one[\"test stage.one\"]\n" +
+		"        unit_tests[\"unit.tests\"]\n" +
+		"    end\n" +
+		"    compile_go --> unit_tests\n"
+	if g != want {
+		t.Errorf("Graph() = %q, want %q", g, want)
 	}
 }
 

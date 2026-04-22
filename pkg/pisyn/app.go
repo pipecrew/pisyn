@@ -98,28 +98,32 @@ func (a *App) Run() error {
 // Graph returns a Mermaid flowchart of the pipeline's job dependency graph.
 func (a *App) Graph() string {
 	var b strings.Builder
+	var edges strings.Builder
 	b.WriteString("graph LR\n")
 	for _, pipeline := range a.Pipelines() {
 		var prevStageJobs []string
 		for _, stage := range pipeline.Stages() {
 			var currentJobs []string
+			fmt.Fprintf(&b, "    subgraph %s[%q]\n", sanitizeID(stage.Name), stage.Name)
 			for _, job := range stage.Jobs() {
 				id := sanitizeID(job.JobName)
-				fmt.Fprintf(&b, "    %s[%q]\n", id, job.JobName)
+				fmt.Fprintf(&b, "        %s[%q]\n", id, job.JobName)
 				if len(job.NeedsList) > 0 {
 					for _, need := range job.NeedsList {
-						fmt.Fprintf(&b, "    %s --> %s\n", sanitizeID(need), id)
+						fmt.Fprintf(&edges, "    %s --> %s\n", sanitizeID(need), id)
 					}
 				} else if len(prevStageJobs) > 0 {
 					for _, prev := range prevStageJobs {
-						fmt.Fprintf(&b, "    %s --> %s\n", prev, id)
+						fmt.Fprintf(&edges, "    %s --> %s\n", prev, id)
 					}
 				}
 				currentJobs = append(currentJobs, id)
 			}
+			b.WriteString("    end\n")
 			prevStageJobs = currentJobs
 		}
 	}
+	b.WriteString(edges.String())
 	return b.String()
 }
 
