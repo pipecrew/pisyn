@@ -77,14 +77,11 @@ func (j *Job) Clone(scope *Stage, name string) *Job {
 		ServiceList:     cloneSlice(j.ServiceList),
 		EnvVars:         cloneMap(j.EnvVars),
 		IsAllowFailure:  j.IsAllowFailure,
-		AllowFailureCfg: j.AllowFailureCfg,
 		TimeoutMin:      j.TimeoutMin,
 		RetryCount:      j.RetryCount,
-		RetryCfg:        j.RetryCfg,
 		When:            j.When,
 		Tags:            cloneStrings(j.Tags),
 		Rules:           cloneSlice(j.Rules),
-		Interruptible:   j.Interruptible,
 		DependencyList:  cloneStrings(j.DependencyList),
 		EmptyNeeds:      j.EmptyNeeds,
 		OutputList:      cloneSlice(j.OutputList),
@@ -108,6 +105,24 @@ func (j *Job) Clone(scope *Stage, name string) *Job {
 	if j.EnvironmentCfg != nil {
 		e := *j.EnvironmentCfg
 		c.EnvironmentCfg = &e
+	}
+	// Deep-copy fields that were previously aliased by pointer so a clone
+	// can't mutate the template via RetryCfg.When, AllowFailureCfg.ExitCodes,
+	// or *Interruptible (#7).
+	if j.RetryCfg != nil {
+		r := *j.RetryCfg
+		r.When = cloneStrings(r.When)
+		r.ExitCodes = cloneSlice(r.ExitCodes)
+		c.RetryCfg = &r
+	}
+	if j.AllowFailureCfg != nil {
+		a := *j.AllowFailureCfg
+		a.ExitCodes = cloneSlice(a.ExitCodes)
+		c.AllowFailureCfg = &a
+	}
+	if j.Interruptible != nil {
+		v := *j.Interruptible
+		c.Interruptible = &v
 	}
 	c.Construct = newConstruct(&scope.Construct, name, c)
 	return c
