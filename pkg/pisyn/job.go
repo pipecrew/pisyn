@@ -109,6 +109,18 @@ func (j *Job) Clone(scope *Stage, name string) *Job {
 		e := *j.EnvironmentCfg
 		c.EnvironmentCfg = &e
 	}
+	if j.RetryCfg != nil {
+		r := *j.RetryCfg
+		c.RetryCfg = &r
+	}
+	if j.AllowFailureCfg != nil {
+		af := *j.AllowFailureCfg
+		c.AllowFailureCfg = &af
+	}
+	if j.Interruptible != nil {
+		v := *j.Interruptible
+		c.Interruptible = &v
+	}
 	c.Construct = newConstruct(&scope.Construct, name, c)
 	return c
 }
