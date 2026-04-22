@@ -18,7 +18,7 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -33,7 +33,7 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -51,7 +51,7 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -78,7 +78,7 @@ jobs:
             - name: Mark workspace as safe directory
               run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
@@ -96,7 +96,7 @@ jobs:
         steps:
             - uses: actions/checkout@v5
             - name: Cache dependencies
-              uses: actions/cache@v4
+              uses: actions/cache@v5
               with:
                 key: go-mod
                 path: /go/pkg/mod
