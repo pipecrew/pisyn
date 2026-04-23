@@ -14,7 +14,7 @@ const (
 	// renovate: datasource=docker depName=golangci/golangci-lint
 	imageLint = "golangci/golangci-lint:v2.11.3-alpine"
 	// renovate: datasource=docker depName=node
-	imageNode = "node:22-alpine"
+	imageNode = "node:24-alpine"
 	// renovate: datasource=docker depName=goreleaser/goreleaser
 	imageGoreleaser = "goreleaser/goreleaser:v2.15.2"
 )
