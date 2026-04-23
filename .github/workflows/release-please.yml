@@ -6,7 +6,6 @@ on:
             - main
 jobs:
     release-please:
-        runs-on: ubuntu-latest
         env:
             RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
         container:
@@ -17,3 +16,4 @@ jobs:
               run: |-
                 npx release-please release-pr --repo-url=${{ github.server_url }}/${{ github.repository }} --token=$RELEASE_PAT --release-type=go --pull-request-header=":robot: new release" --pull-request-footer=" "
                 npx release-please github-release --repo-url=${{ github.server_url }}/${{ github.repository }} --token=$RELEASE_PAT --release-type=go
+        runs-on: ubuntu-latest

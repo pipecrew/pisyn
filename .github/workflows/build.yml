@@ -9,11 +9,10 @@ env:
     GOFLAGS: -trimpath
 jobs:
     lint-go:
-        runs-on: ubuntu-latest
         if: ${{ github.event.pull_request.number }}
         continue-on-error: true
         container:
-            image: golangci/golangci-lint:v2.11.4-alpine
+            image: golangci/golangci-lint:v2.11.3-alpine
             options: --entrypoint ""
         steps:
             - uses: actions/checkout@v6
@@ -24,8 +23,8 @@ jobs:
                 path: /go/pkg/mod
             - name: Run
               run: golangci-lint run --timeout 5m ./...
+        runs-on: ubuntu-latest
     vulncheck:
-        if: ${{ github.event.pull_request.number }}
         continue-on-error: true
         container:
             image: golang:1.26
@@ -41,6 +40,7 @@ jobs:
                 go install golang.org/x/vuln/cmd/govulncheck@latest
                 govulncheck ./...
         runs-on: ubuntu-latest
+        if: ${{ github.event.pull_request.number }}
     unit-tests:
         runs-on: ubuntu-latest
         needs:
@@ -88,6 +88,7 @@ jobs:
               name: Set outputs
               run: cat version.env >> $GITHUB_OUTPUT
     build-binary:
+        runs-on: ubuntu-latest
         needs:
             - gen-version
         container:
