@@ -52,11 +52,11 @@ func TestSynthGitHub(t *testing.T) {
 		"runs-on: ubuntu-latest",
 		"container:",
 		"image: golang:1.26",
-		"actions/checkout@v5",
-		"actions/cache@v4",
+		"actions/checkout@v6",
+		"actions/cache@v5",
 		"go-mod",
 		"go test ./...",
-		"actions/upload-artifact@v4",
+		"actions/upload-artifact@v7",
 		"if: always()",
 		"timeout-minutes: 15",
 		"deploy-prod:",
@@ -217,7 +217,12 @@ func TestSynthGitHubStepConstruct(t *testing.T) {
 	pisyn.NewJob(st, "build").
 		AddStep(pisyn.Step{Uses: "actions/setup-node@v4", With: map[string]string{"node-version": "20"}}).
 		Script("npm install", "npm run build").
-		AddStep(pisyn.Step{Uses: "actions/deploy-pages@v4", If: "github.ref == 'refs/heads/main'"})
+		AddStep(pisyn.Step{Uses: "actions/deploy-pages@v4", If: "github.ref == 'refs/heads/main'"}).
+		SetCache(pisyn.Cache{Key: "npm", Paths: []string{"node_modules"}}).
+		SetArtifacts(pisyn.Artifacts{
+			Paths:    []string{"dist/"},
+			ExpireIn: "7 days",
+		})
 
 	if err := app.Synth(github.NewSynthesizer()); err != nil {
 		t.Fatalf("synth: %v", err)
@@ -230,8 +235,10 @@ func TestSynthGitHubStepConstruct(t *testing.T) {
 	out := string(b)
 
 	for _, want := range []string{
-		"actions/checkout@v5",
+		"actions/checkout@v6",
 		"actions/setup-node@v4",
+		"actions/cache@v5",
+		"actions/upload-artifact@v7",
 		"node-version:",
 		"npm install",
 		"npm run build",

@@ -6,13 +6,13 @@ on:
     workflow_dispatch: {}
 jobs:
     goreleaser:
-        container:
-            image: goreleaser/goreleaser:v2.15.2
+        runs-on: ubuntu-latest
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        runs-on: ubuntu-latest
+        container:
+            image: goreleaser/goreleaser:v2.15.3
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
               with:
                 fetch-depth: "0"
             - name: Mark workspace as safe directory

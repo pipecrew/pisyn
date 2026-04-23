@@ -40,7 +40,7 @@ func buildPipeline(app *ps.App) {
 	lint := ps.NewStage(pipeline, "lint")
 
 	goBase.Clone(lint, "lint-go").
-		Image("golangci/golangci-lint:v2.11.3-alpine").
+		Image("golangci/golangci-lint:v2.11.4-alpine").
 		ImageEntrypoint("").
 		AddRule(ps.Rule{If: ps.VarMRID, When: "always"}).
 		AddRule(ps.Rule{When: "never"}).
@@ -114,7 +114,7 @@ func releasePipeline(app *ps.App) {
 	stage := ps.NewStage(pipeline, "goreleaser")
 
 	ps.NewJob(stage, "goreleaser").
-		Image("goreleaser/goreleaser:v2.15.2").
+		Image("goreleaser/goreleaser:v2.15.3").
 		SetFetchDepth(0).
 		Script("goreleaser release --clean").
 		Env("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}")

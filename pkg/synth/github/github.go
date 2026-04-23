@@ -255,7 +255,7 @@ func buildSteps(job *pisyn.Job) []map[string]any {
 	var steps []map[string]any
 
 	// Every job starts with a checkout
-	checkout := map[string]any{"uses": "actions/checkout@v5"}
+	checkout := map[string]any{"uses": "actions/checkout@v6"}
 	if job.FetchDepth >= 0 {
 		checkout["with"] = map[string]any{"fetch-depth": fmt.Sprintf("%d", job.FetchDepth)}
 	}
@@ -274,7 +274,7 @@ func buildSteps(job *pisyn.Job) []map[string]any {
 	if job.CacheCfg != nil {
 		steps = append(steps, map[string]any{
 			"name": "Cache dependencies",
-			"uses": "actions/cache@v4",
+			"uses": "actions/cache@v5",
 			"with": map[string]any{
 				"path": strings.Join(job.CacheCfg.Paths, "\n"),
 				"key":  job.CacheCfg.Key,
@@ -314,7 +314,7 @@ func buildSteps(job *pisyn.Job) []map[string]any {
 		steps = append(steps, map[string]any{
 			"name": "Upload artifacts",
 			"if":   "always()",
-			"uses": "actions/upload-artifact@v4",
+			"uses": "actions/upload-artifact@v7",
 			"with": map[string]any{
 				"name": artifactName,
 				"path": strings.Join(job.ArtifactsCfg.Paths, "\n"),
