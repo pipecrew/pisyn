@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/pipecrew/pisyn/compare/v0.3.1...v0.3.2) (2026-04-23)
+
+
+### Bug Fixes
+
+* structure images in pipeline better, add grouping in renovate config ([#47](https://github.com/pipecrew/pisyn/issues/47)) ([7ce8b5a](https://github.com/pipecrew/pisyn/commit/7ce8b5af3fe1f5ab429a8c4756c3c1f52407f62d))
+
 ## [0.3.1](https://github.com/pipecrew/pisyn/compare/v0.3.0...v0.3.1) (2026-04-23)
 
 
