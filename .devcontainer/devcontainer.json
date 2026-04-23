@@ -1,8 +1,8 @@
 {
   "name": "pisyn",
-  "image": "mcr-docker-remote.bahnhub.tech.rz.db.de/devcontainers/go:1.26",
+  "image": "mcr.microsoft.com/devcontainers/go:1.26",
   "features": {
-    "ghcr-remote.bahnhub.tech.rz.db.de/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "postCreateCommand": "go build ./...",
   "customizations": {

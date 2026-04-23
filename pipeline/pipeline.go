@@ -8,6 +8,17 @@ import (
 	_ "github.com/pipecrew/pisyn/pkg/synth/gitlab"
 )
 
+const (
+	// renovate: datasource=docker depName=golang
+	imageGo = "golang:1.26"
+	// renovate: datasource=docker depName=golangci/golangci-lint
+	imageLint = "golangci/golangci-lint:v2.11.3-alpine"
+	// renovate: datasource=docker depName=node
+	imageNode = "node:22-alpine"
+	// renovate: datasource=docker depName=goreleaser/goreleaser
+	imageGoreleaser = "goreleaser/goreleaser:v2.15.2"
+)
+
 func main() {
 	app := ps.NewApp()
 
@@ -28,7 +39,7 @@ func buildPipeline(app *ps.App) {
 		SetEnv("GOFLAGS", "-trimpath")
 
 	goBase := ps.JobTemplate("go-base").
-		Image("golang:1.26").
+		Image(imageGo).
 		SetCache(ps.Cache{Key: "go-mod", Paths: []string{"/go/pkg/mod"}}).
 		SetInterruptible(true).
 		SetRetry(ps.RetryConfig{
@@ -40,7 +51,7 @@ func buildPipeline(app *ps.App) {
 	lint := ps.NewStage(pipeline, "lint")
 
 	goBase.Clone(lint, "lint-go").
-		Image("golangci/golangci-lint:v2.11.4-alpine").
+		Image(imageLint).
 		ImageEntrypoint("").
 		AddRule(ps.Rule{If: ps.VarMRID, When: "always"}).
 		AddRule(ps.Rule{When: "never"}).
@@ -99,7 +110,7 @@ func releasePleasePipeline(app *ps.App) {
 	stage := ps.NewStage(pipeline, "release-please")
 
 	ps.NewJob(stage, "release-please").
-		Image("node:22-alpine").
+		Image(imageNode).
 		Env("RELEASE_PAT", "${{ secrets.RELEASE_PAT }}").
 		Script(
 			"npx release-please release-pr --repo-url="+ps.VarProjectURL+" --token=$RELEASE_PAT --release-type=go --pull-request-header=\":robot: new release\" --pull-request-footer=\" \"",
@@ -114,7 +125,7 @@ func releasePipeline(app *ps.App) {
 	stage := ps.NewStage(pipeline, "goreleaser")
 
 	ps.NewJob(stage, "goreleaser").
-		Image("goreleaser/goreleaser:v2.15.3").
+		Image(imageGoreleaser).
 		SetFetchDepth(0).
 		Script("goreleaser release --clean").
 		Env("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}")

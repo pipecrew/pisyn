@@ -1,7 +1,25 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "group:goOpenTelemetry"
   ],
-  "minimumReleaseAge": "24 hours"
+  "minimumReleaseAge": "24 hours",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["\\.go$"],
+      "matchStrings": [
+        "//\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>.+?)\\s*\\n\\s*\\w+\\s*=\\s*\".+?:(?<currentValue>[^\"]+)\""
+      ],
+      "versioningTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["go"],
+      "groupName": "Go dependencies",
+      "groupSlug": "go-deps"
+    }
+  ]
 }
