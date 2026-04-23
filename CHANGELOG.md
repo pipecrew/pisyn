@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/pipecrew/pisyn/compare/v0.3.0...v0.3.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* update dependencies and actions ([#45](https://github.com/pipecrew/pisyn/issues/45)) ([fec872a](https://github.com/pipecrew/pisyn/commit/fec872a290d25c3bcd53334220b5c91ebeaa00fb))
+
 ## [0.3.0](https://github.com/pipecrew/pisyn/compare/v0.2.2...v0.3.0) (2026-04-22)
 
 
