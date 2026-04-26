@@ -1,6 +1,7 @@
 ## macOS
 .DS_Store
 *.sh
+!scripts/*.sh
 
 ## Editor/IDE - vscode
 .vscode
