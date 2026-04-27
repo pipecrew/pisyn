@@ -9,7 +9,7 @@ jobs:
         env:
             RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
         container:
-            image: node:22-alpine
+            image: node:24-alpine
         steps:
             - uses: actions/checkout@v6
             - name: Run
