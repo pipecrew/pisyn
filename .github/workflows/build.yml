@@ -35,10 +35,12 @@ jobs:
               with:
                 key: go-mod
                 path: /go/pkg/mod
+            - name: Install jq
+              run: apt-get update && apt-get install -y jq
             - name: Run
               run: |-
                 go install golang.org/x/vuln/cmd/govulncheck@latest
-                govulncheck ./...
+                ./scripts/govulncheck.sh
         runs-on: ubuntu-latest
         if: ${{ github.event.pull_request.number }}
     unit-tests:
