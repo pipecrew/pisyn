@@ -16,7 +16,7 @@ const (
 	// renovate: datasource=docker depName=node
 	imageNode = "node:22-alpine"
 	// renovate: datasource=docker depName=goreleaser/goreleaser
-	imageGoreleaser = "goreleaser/goreleaser:v2.15.2"
+	imageGoreleaser = "goreleaser/goreleaser:v2.15.4"
 )
 
 func main() {
