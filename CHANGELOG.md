@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/pipecrew/pisyn/compare/v0.3.2...v0.3.3) (2026-04-27)
+
+
+### Bug Fixes
+
+* **ci:** exclude unfixable docker vulns from govulncheck ([#26](https://github.com/pipecrew/pisyn/issues/26)) ([#53](https://github.com/pipecrew/pisyn/issues/53)) ([860892c](https://github.com/pipecrew/pisyn/commit/860892ce2a15618250d0a34a84dba276050ae081))
+
 ## [0.3.2](https://github.com/pipecrew/pisyn/compare/v0.3.1...v0.3.2) (2026-04-23)
 
 
