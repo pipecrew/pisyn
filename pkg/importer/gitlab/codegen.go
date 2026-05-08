@@ -2,6 +2,7 @@ package gitlab
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
@@ -28,8 +29,8 @@ func GenerateGo(r *ParseResult) string {
 	w("func main() {\n\tapp := ps.NewApp()\n\tp := ps.NewPipeline(app, %q)", p.Name)
 
 	// Pipeline-level env
-	for k, v := range p.Env {
-		w(".\n\t\tSetEnv(%q, %q)", k, v)
+	for _, k := range sortedKeys(p.Env) {
+		w(".\n\t\tSetEnv(%q, %q)", k, p.Env[k])
 	}
 
 	// Triggers from workflow rules (best-effort reverse)
@@ -175,8 +176,8 @@ func emitJobFields(b *strings.Builder, job *pisyn.IRJob) {
 		w(".\n\t\tDependencies(%s)", goStringArgs(job.Dependencies))
 	}
 
-	for k, v := range job.Env {
-		w(".\n\t\tEnv(%q, %q)", k, reverseVars(v))
+	for _, k := range sortedKeys(job.Env) {
+		w(".\n\t\tEnv(%q, %q)", k, reverseVars(job.Env[k]))
 	}
 
 	for _, svc := range job.Services {
@@ -332,8 +333,8 @@ func hasNonTriggerWorkflowRules(rules []pisyn.Rule) bool {
 
 // reverseVars replaces GitLab CI variables with pisyn platform-neutral equivalents.
 func reverseVars(s string) string {
-	for glVar, pisynVar := range gitlabToPisyn {
-		s = strings.ReplaceAll(s, "$"+glVar, "$"+pisynVar)
+	for _, glVar := range sortedKeys(gitlabToPisyn) {
+		s = strings.ReplaceAll(s, "$"+glVar, "$"+gitlabToPisyn[glVar])
 	}
 	return s
 }
@@ -394,17 +395,22 @@ func goIntArgs(ns []int) string {
 }
 
 func goStringMap(m map[string]string) string {
-	var parts []string
-	for k, v := range m {
-		parts = append(parts, fmt.Sprintf("%q: %q", k, v))
+	parts := make([]string, 0, len(m))
+	for _, k := range sortedKeys(m) {
+		parts = append(parts, fmt.Sprintf("%q: %q", k, m[k]))
 	}
 	return "map[string]string{" + strings.Join(parts, ", ") + "}"
 }
 
 func goStringSliceMap(m map[string][]string) string {
-	var parts []string
-	for k, v := range m {
-		parts = append(parts, fmt.Sprintf("%q: %s", k, goStringSlice(v)))
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(m))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%q: %s", k, goStringSlice(m[k])))
 	}
 	return "map[string][]string{" + strings.Join(parts, ", ") + "}"
 }
@@ -430,4 +436,13 @@ func goRule(r pisyn.Rule) string {
 		parts = append(parts, fmt.Sprintf("Variables: %s", goStringMap(r.Variables)))
 	}
 	return "ps.Rule{" + strings.Join(parts, ", ") + "}"
+}
+
+func sortedKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

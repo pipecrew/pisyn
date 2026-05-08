@@ -3,6 +3,7 @@ package gitlab
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
@@ -517,7 +518,8 @@ func setInterruptible(cfg map[string]any, job *pisyn.Job) {
 var pisynToGitLab = pisyn.GitLabVars
 
 func translateVars(str string) string {
-	for pisynVar, gitlabVar := range pisynToGitLab {
+	for _, pisynVar := range sortedMapKeys(pisynToGitLab) {
+		gitlabVar := pisynToGitLab[pisynVar]
 		str = strings.ReplaceAll(str, "${"+pisynVar+"}", "${"+gitlabVar+"}")
 		str = strings.ReplaceAll(str, "$"+pisynVar, "$"+gitlabVar)
 	}
@@ -527,6 +529,15 @@ func translateVars(str string) string {
 		return "$" + varName
 	})
 	return str
+}
+
+func sortedMapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // translateOutputRefs finds $PISYN_OUTPUT_<JOB>_<VAR> patterns and replaces them.
