@@ -13,7 +13,7 @@ jobs:
         if: ${{ github.event.pull_request.number }}
         continue-on-error: true
         container:
-            image: golangci/golangci-lint:v2.11.4-alpine
+            image: golangci/golangci-lint:v2.12.2-alpine
             options: --entrypoint ""
         steps:
             - uses: actions/checkout@v6
