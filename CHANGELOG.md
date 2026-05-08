@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/pipecrew/pisyn/compare/v0.3.3...v0.4.0) (2026-05-08)
+
+
+### Features
+
+* add action and on_stop support to environment ([#58](https://github.com/pipecrew/pisyn/issues/58)) ([6b14459](https://github.com/pipecrew/pisyn/commit/6b14459085c235628efed0c873d26ab96427bf80))
+
+
+### Bug Fixes
+
+* **deps:** update go dependencies ([#60](https://github.com/pipecrew/pisyn/issues/60)) ([9996d1e](https://github.com/pipecrew/pisyn/commit/9996d1eb1457d1c6d071b7e99d4806d02d394348))
+* solve nondeterministic output ([#62](https://github.com/pipecrew/pisyn/issues/62)) ([6dafe3f](https://github.com/pipecrew/pisyn/commit/6dafe3fa382d3822a242fdddc6878ecf3437ff9e))
+
 ## [0.3.3](https://github.com/pipecrew/pisyn/compare/v0.3.2...v0.3.3) (2026-04-27)
 
 
