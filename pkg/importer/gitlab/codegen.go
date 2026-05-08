@@ -216,7 +216,23 @@ func emitJobFields(b *strings.Builder, job *pisyn.IRJob) {
 	}
 
 	if job.Environment != nil {
-		w(".\n\t\tSetEnvironment(%q, %q)", job.Environment.Name, job.Environment.URL)
+		if job.Environment.Action == "stop" && job.Environment.URL == "" && job.Environment.OnStop == "" {
+			w(".\n\t\tSetEnvironmentStop(%q)", job.Environment.Name)
+		} else if job.Environment.Action != "" || job.Environment.OnStop != "" {
+			w(".\n\t\tSetEnvironmentOpts(ps.Environment{Name: %q", job.Environment.Name)
+			if job.Environment.URL != "" {
+				w(", URL: %q", job.Environment.URL)
+			}
+			if job.Environment.Action != "" {
+				w(", Action: %q", job.Environment.Action)
+			}
+			if job.Environment.OnStop != "" {
+				w(", OnStop: %q", job.Environment.OnStop)
+			}
+			w("})")
+		} else {
+			w(".\n\t\tSetEnvironment(%q, %q)", job.Environment.Name, job.Environment.URL)
+		}
 	}
 
 	for _, r := range job.Rules {

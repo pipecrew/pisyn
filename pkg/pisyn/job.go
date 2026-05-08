@@ -67,25 +67,25 @@ func (j *Job) Clone(scope *Stage, name string) *Job {
 		panic(err.Error())
 	}
 	c := &Job{
-		JobName:         name,
-		ImageName:       j.ImageName,
-		ImageEP:         cloneStrings(j.ImageEP),
-		ImageUsr:        j.ImageUsr,
-		Actions:         cloneActions(j.Actions),
-		NeedsList:       cloneStrings(j.NeedsList),
-		Runner:          j.Runner,
-		ServiceList:     cloneSlice(j.ServiceList),
-		EnvVars:         cloneMap(j.EnvVars),
-		IsAllowFailure:  j.IsAllowFailure,
-		TimeoutMin:      j.TimeoutMin,
-		RetryCount:      j.RetryCount,
-		When:            j.When,
-		Tags:            cloneStrings(j.Tags),
-		Rules:           cloneSlice(j.Rules),
-		DependencyList:  cloneStrings(j.DependencyList),
-		EmptyNeeds:      j.EmptyNeeds,
-		OutputList:      cloneSlice(j.OutputList),
-		FetchDepth:      j.FetchDepth,
+		JobName:        name,
+		ImageName:      j.ImageName,
+		ImageEP:        cloneStrings(j.ImageEP),
+		ImageUsr:       j.ImageUsr,
+		Actions:        cloneActions(j.Actions),
+		NeedsList:      cloneStrings(j.NeedsList),
+		Runner:         j.Runner,
+		ServiceList:    cloneSlice(j.ServiceList),
+		EnvVars:        cloneMap(j.EnvVars),
+		IsAllowFailure: j.IsAllowFailure,
+		TimeoutMin:     j.TimeoutMin,
+		RetryCount:     j.RetryCount,
+		When:           j.When,
+		Tags:           cloneStrings(j.Tags),
+		Rules:          cloneSlice(j.Rules),
+		DependencyList: cloneStrings(j.DependencyList),
+		EmptyNeeds:     j.EmptyNeeds,
+		OutputList:     cloneSlice(j.OutputList),
+		FetchDepth:     j.FetchDepth,
 	}
 	if j.ArtifactsCfg != nil {
 		a := *j.ArtifactsCfg
@@ -308,6 +308,18 @@ func (j *Job) SetCache(c Cache) *Job { j.CacheCfg = &c; return j }
 // SetEnvironment sets the deployment environment for the job.
 func (j *Job) SetEnvironment(name, url string) *Job {
 	j.EnvironmentCfg = &Environment{Name: name, URL: url}
+	return j
+}
+
+// SetEnvironmentStop configures this job as the stop action for a named environment.
+func (j *Job) SetEnvironmentStop(name string) *Job {
+	j.EnvironmentCfg = &Environment{Name: name, Action: "stop"}
+	return j
+}
+
+// SetEnvironmentOpts sets the deployment environment with full configuration.
+func (j *Job) SetEnvironmentOpts(env Environment) *Job {
+	j.EnvironmentCfg = &env
 	return j
 }
 
