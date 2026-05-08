@@ -428,7 +428,7 @@ func setMatrix(cfg map[string]any, job *pisyn.Job) {
 	}
 }
 
-// setEnvironment renders the deployment environment (name + optional URL).
+// setEnvironment renders the deployment environment (name + optional URL, action, on_stop).
 func setEnvironment(cfg map[string]any, job *pisyn.Job) {
 	if job.EnvironmentCfg == nil {
 		return
@@ -436,6 +436,12 @@ func setEnvironment(cfg map[string]any, job *pisyn.Job) {
 	env := map[string]any{"name": job.EnvironmentCfg.Name}
 	if job.EnvironmentCfg.URL != "" {
 		env["url"] = job.EnvironmentCfg.URL
+	}
+	if job.EnvironmentCfg.Action != "" {
+		env["action"] = job.EnvironmentCfg.Action
+	}
+	if job.EnvironmentCfg.OnStop != "" {
+		env["on_stop"] = job.EnvironmentCfg.OnStop
 	}
 	cfg["environment"] = env
 }

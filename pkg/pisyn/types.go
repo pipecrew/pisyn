@@ -58,8 +58,10 @@ type Service struct {
 
 // Environment defines a deployment environment.
 type Environment struct {
-	Name string `json:"name"`
-	URL  string `json:"url,omitempty"`
+	Name   string `json:"name"`
+	URL    string `json:"url,omitempty"`
+	Action string `json:"action,omitempty"`  // "stop", "prepare", "start", "verify", "access"
+	OnStop string `json:"on_stop,omitempty"` // job name that stops this environment
 }
 
 // JobOutput declares a named output variable produced by a job.

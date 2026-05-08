@@ -494,11 +494,13 @@ func parseEnvironment(node *yaml.Node, ir *pisyn.IRJob) {
 		return
 	}
 	var env struct {
-		Name string `yaml:"name"`
-		URL  string `yaml:"url"`
+		Name   string `yaml:"name"`
+		URL    string `yaml:"url"`
+		Action string `yaml:"action"`
+		OnStop string `yaml:"on_stop"`
 	}
 	if err := node.Decode(&env); err == nil {
-		ir.Environment = &pisyn.Environment{Name: env.Name, URL: env.URL}
+		ir.Environment = &pisyn.Environment{Name: env.Name, URL: env.URL, Action: env.Action, OnStop: env.OnStop}
 	}
 }
 
