@@ -218,7 +218,9 @@ func (d *DockerRunner) RunJob(ctx context.Context, job *pisyn.Job, extraEnv map[
 		return fmt.Errorf("create container: %w", err)
 	}
 	containerID := resp.ID
-	defer func() { _ = d.cli.ContainerRemove(context.Background(), containerID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
+	defer func() {
+		_ = d.cli.ContainerRemove(context.Background(), containerID, container.RemoveOptions{Force: true})
+	}() // best-effort cleanup
 
 	// Start container
 	if err := d.cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
@@ -315,7 +317,7 @@ func (d *DockerRunner) startServices(ctx context.Context, job *pisyn.Job, events
 
 func (d *DockerRunner) stopContainers(ctx context.Context, ids []string) {
 	for _, id := range ids {
-		_ = d.cli.ContainerStop(ctx, id, container.StopOptions{})       // best-effort cleanup
+		_ = d.cli.ContainerStop(ctx, id, container.StopOptions{})                // best-effort cleanup
 		_ = d.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: true}) // best-effort cleanup
 	}
 }
@@ -481,7 +483,19 @@ func tarDir(dir string) (io.Reader, error) {
 			return nil
 		}
 
-		header, err := tar.FileInfoHeader(info, "")
+		// filepath.Walk does not follow symlinks; info.Mode() carries
+		// the link bit and Lstat-style sizing. Read the link target so
+		// tar.FileInfoHeader records it as a Typeflag=Symlink entry
+		// instead of a zero-content regular file.
+		linkTarget := ""
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkTarget, err = os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("readlink %s: %w", rel, err)
+			}
+		}
+
+		header, err := tar.FileInfoHeader(info, linkTarget)
 		if err != nil {
 			return err
 		}
@@ -490,7 +504,8 @@ func tarDir(dir string) (io.Reader, error) {
 		if err := tw.WriteHeader(header); err != nil {
 			return err
 		}
-		if info.IsDir() {
+		// Directories and symlinks have no body to copy.
+		if info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			return nil
 		}
 
