@@ -3,6 +3,7 @@ package gitlab
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -74,7 +75,15 @@ func Parse(data []byte) (*ParseResult, error) {
 		stageIndex[s.Name] = i
 	}
 
-	for key, node := range raw {
+	// Sort keys for deterministic output order
+	keys := make([]string, 0, len(raw))
+	for key := range raw {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		node := raw[key]
 		if knownTopLevel[key] {
 			continue
 		}

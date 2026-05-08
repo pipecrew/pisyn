@@ -4,6 +4,7 @@ package github
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
@@ -364,13 +365,23 @@ var pisynToGitHub = pisyn.GitHubVars
 
 // translateVars replaces pisyn variables with GitHub Actions equivalents.
 func translateVars(str string) string {
-	for pisynVar, ghVar := range pisynToGitHub {
+	for _, pisynVar := range sortedMapKeys(pisynToGitHub) {
+		ghVar := pisynToGitHub[pisynVar]
 		str = strings.ReplaceAll(str, "${"+pisynVar+"}", ghVar)
 		str = strings.ReplaceAll(str, "$"+pisynVar, ghVar)
 	}
 	// Translate output refs: $PISYN_OUTPUT_JOBNAME_VARNAME → ${{ needs.job-name.outputs.varname }}
 	str = translateOutputRefs(str)
 	return str
+}
+
+func sortedMapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func translateOutputRefs(str string) string {

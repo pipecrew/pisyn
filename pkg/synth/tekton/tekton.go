@@ -4,6 +4,7 @@ package tekton
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
@@ -130,9 +131,14 @@ func sanitize(s string) string {
 
 // translateVars replaces pisyn variables with Tekton param references.
 func translateVars(s string) string {
-	for k, v := range pisyn.TektonVars {
-		s = strings.ReplaceAll(s, "${"+k+"}", v)
-		s = strings.ReplaceAll(s, "$"+k, v)
+	keys := make([]string, 0, len(pisyn.TektonVars))
+	for k := range pisyn.TektonVars {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		s = strings.ReplaceAll(s, "${"+k+"}", pisyn.TektonVars[k])
+		s = strings.ReplaceAll(s, "$"+k, pisyn.TektonVars[k])
 	}
 	return s
 }
