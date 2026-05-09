@@ -129,18 +129,26 @@ func sanitize(s string) string {
 	return strings.ReplaceAll(strings.ToLower(s), " ", "-")
 }
 
-// translateVars replaces pisyn variables with Tekton param references.
-func translateVars(s string) string {
-	keys := make([]string, 0, len(pisyn.TektonVars))
-	for k := range pisyn.TektonVars {
+var varReplacer = buildVarReplacer(pisyn.TektonVars)
+
+// buildVarReplacer creates a single-pass string replacer for $VAR and ${VAR} patterns.
+func buildVarReplacer(m map[string]string) *strings.Replacer {
+	pairs := make([]string, 0, len(m)*4)
+	keys := make([]string, 0, len(m))
+	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		s = strings.ReplaceAll(s, "${"+k+"}", pisyn.TektonVars[k])
-		s = strings.ReplaceAll(s, "$"+k, pisyn.TektonVars[k])
+		v := m[k]
+		pairs = append(pairs, "${"+k+"}", v, "$"+k, v)
 	}
-	return s
+	return strings.NewReplacer(pairs...)
+}
+
+// translateVars replaces pisyn platform-neutral variables with Tekton param references.
+func translateVars(s string) string {
+	return varReplacer.Replace(s)
 }
 
 func concat(slices ...[]string) []string {

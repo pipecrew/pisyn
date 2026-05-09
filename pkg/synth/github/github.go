@@ -363,25 +363,28 @@ func buildActionStep(actionStep *pisyn.Step) map[string]any {
 // pisynToGitHub maps pisyn platform-neutral variables to GitHub Actions equivalents.
 var pisynToGitHub = pisyn.GitHubVars
 
-// translateVars replaces pisyn variables with GitHub Actions equivalents.
-func translateVars(str string) string {
-	for _, pisynVar := range sortedMapKeys(pisynToGitHub) {
-		ghVar := pisynToGitHub[pisynVar]
-		str = strings.ReplaceAll(str, "${"+pisynVar+"}", ghVar)
-		str = strings.ReplaceAll(str, "$"+pisynVar, ghVar)
-	}
-	// Translate output refs: $PISYN_OUTPUT_JOBNAME_VARNAME → ${{ needs.job-name.outputs.varname }}
-	str = translateOutputRefs(str)
-	return str
-}
+var varReplacer = buildVarReplacer(pisynToGitHub)
 
-func sortedMapKeys(m map[string]string) []string {
+// buildVarReplacer creates a single-pass string replacer for $VAR and ${VAR} patterns.
+func buildVarReplacer(m map[string]string) *strings.Replacer {
+	pairs := make([]string, 0, len(m)*4)
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	return keys
+	for _, k := range keys {
+		v := m[k]
+		pairs = append(pairs, "${"+k+"}", v, "$"+k, v)
+	}
+	return strings.NewReplacer(pairs...)
+}
+
+// translateVars replaces pisyn variables with GitHub Actions equivalents.
+func translateVars(str string) string {
+	str = varReplacer.Replace(str)
+	str = translateOutputRefs(str)
+	return str
 }
 
 func translateOutputRefs(str string) string {

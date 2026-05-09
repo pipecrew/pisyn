@@ -517,27 +517,30 @@ func setInterruptible(cfg map[string]any, job *pisyn.Job) {
 // pisynToGitLab maps pisyn platform-neutral variables to GitLab CI equivalents.
 var pisynToGitLab = pisyn.GitLabVars
 
-func translateVars(str string) string {
-	for _, pisynVar := range sortedMapKeys(pisynToGitLab) {
-		gitlabVar := pisynToGitLab[pisynVar]
-		str = strings.ReplaceAll(str, "${"+pisynVar+"}", "${"+gitlabVar+"}")
-		str = strings.ReplaceAll(str, "$"+pisynVar, "$"+gitlabVar)
-	}
-	// Translate output refs: $PISYN_OUTPUT_JOBNAME_VARNAME → $VARNAME
-	// GitLab injects dotenv vars directly by name
-	str = translateOutputRefs(str, func(_, varName string) string {
-		return "$" + varName
-	})
-	return str
-}
+var varReplacer = buildVarReplacer(pisynToGitLab)
 
-func sortedMapKeys(m map[string]string) []string {
+// buildVarReplacer creates a single-pass string replacer for $VAR and ${VAR} patterns.
+func buildVarReplacer(m map[string]string) *strings.Replacer {
+	pairs := make([]string, 0, len(m)*4)
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	return keys
+	for _, k := range keys {
+		v := m[k]
+		pairs = append(pairs, "${"+k+"}", "${"+v+"}", "$"+k, "$"+v)
+	}
+	return strings.NewReplacer(pairs...)
+}
+
+// translateVars replaces pisyn platform-neutral variables with GitLab CI equivalents.
+func translateVars(str string) string {
+	str = varReplacer.Replace(str)
+	str = translateOutputRefs(str, func(_, varName string) string {
+		return "$" + varName
+	})
+	return str
 }
 
 // translateOutputRefs finds $PISYN_OUTPUT_<JOB>_<VAR> patterns and replaces them.
