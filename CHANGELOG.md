@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/pipecrew/pisyn/compare/v0.4.0...v0.4.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* improve security, efficiency, and API across synth/runner/validate ([#63](https://github.com/pipecrew/pisyn/issues/63)) ([0b48815](https://github.com/pipecrew/pisyn/commit/0b488159c1f31b671552c8911e007be59fa80131))
+
 ## [0.4.0](https://github.com/pipecrew/pisyn/compare/v0.3.3...v0.4.0) (2026-05-08)
 
 
