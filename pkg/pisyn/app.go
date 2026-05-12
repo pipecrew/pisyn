@@ -5,6 +5,7 @@ package pisyn
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -50,34 +51,15 @@ func (a *App) Synth(s Synthesizer) error {
 	return s.Synth(a, a.OutDir)
 }
 
-// Run synthesizes the app. If PISYN_PLATFORM is set, only those platforms are
-// synthesized. Otherwise all registered platforms are used.
-// If PISYN_MODE=build, writes pipeline.json and exits.
-// If PISYN_MODE=graph, outputs a Mermaid diagram instead of synthesizing.
-func (a *App) Run() error {
-	if os.Getenv("PISYN_MODE") == "build" {
-		outDir := a.OutDir
-		if d := os.Getenv("PISYN_OUT_DIR"); d != "" {
-			outDir = d
-		}
-		return a.Build(outDir)
-	}
-
-	if os.Getenv("PISYN_MODE") == "graph" {
-		fmt.Print(a.Graph())
-		return nil
-	}
-
-	// Default: build + synth
-	if err := a.Build(a.OutDir); err != nil {
-		return err
-	}
-
+// SynthAll synthesizes all registered platforms to the output directory.
+// If PISYN_PLATFORM is set, only those platforms are synthesized.
+func (a *App) SynthAll() error {
 	platforms := platformsFromEnv()
 	if len(platforms) == 0 {
 		for name := range registry {
 			platforms = append(platforms, name)
 		}
+		sort.Strings(platforms)
 	}
 	if len(platforms) == 0 {
 		return fmt.Errorf("no platforms registered; call pisyn.RegisterPlatform() or set PISYN_PLATFORM")
@@ -85,14 +67,37 @@ func (a *App) Run() error {
 	for _, p := range platforms {
 		factory, ok := registry[strings.ToLower(p)]
 		if !ok {
-			return fmt.Errorf("⚠️ unknown platform: %s", p)
+			return fmt.Errorf("unknown platform: %s", p)
 		}
 		if err := a.Synth(factory()); err != nil {
-			return fmt.Errorf("❌ synth %s: %w", p, err)
+			return fmt.Errorf("synth %s: %w", p, err)
 		}
 		fmt.Printf("⚗️ %s synthesized → %s\n", p, a.OutDir)
 	}
 	return nil
+}
+
+// Run is the standard entry point for pipeline main.go files.
+// It dispatches based on PISYN_MODE env var (set by the pisyn CLI).
+// Library users who want to synth without env-var coupling should call
+// Build() and SynthAll() directly.
+func (a *App) Run() error {
+	switch os.Getenv("PISYN_MODE") {
+	case "build":
+		return a.Build(a.outDir())
+	case "graph":
+		fmt.Print(a.Graph())
+		return nil
+	default:
+		if err := a.Build(a.outDir()); err != nil {
+			return err
+		}
+		return a.SynthAll()
+	}
+}
+
+func (a *App) outDir() string {
+	return a.OutDir
 }
 
 // Graph returns a Mermaid flowchart of the pipeline's job dependency graph.

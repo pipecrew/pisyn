@@ -104,12 +104,13 @@ import (
 app.Run()  // → pisyn.out/.gitlab-ci.yml, .github/workflows/<name>.yml, tekton/...
 ```
 
-For programmatic control (e.g. in tests), call `Synth()` directly:
+For programmatic control (e.g. in tests, libraries), use the decoupled API — no env-var dispatch:
 
 ```go
 import "github.com/pipecrew/pisyn/pkg/synth/gitlab"
 
-app.Synth(gitlab.NewSynthesizer())  // → pisyn.out/.gitlab-ci.yml
+app.Synth(gitlab.NewSynthesizer())  // single platform → pisyn.out/.gitlab-ci.yml
+app.SynthAll()                      // all registered platforms (same as Run but no env coupling)
 ```
 
 ## CLI
@@ -226,7 +227,7 @@ The TUI shows a split-panel view: job list with status indicators on the left, l
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Each job runs in a Docker container with the project directory copied into an isolated workspace volume. Your local files are never modified. Services (e.g. Postgres) are started on a shared network and addressable by alias. Platform-neutral variables (`$PISYN_COMMIT_SHA`, etc.) are resolved from the local git repo. Job outputs (`Output()` / `OutputRef()`) and cache (`SetCache()`) work locally via Docker volumes.
+Each job runs in a Docker container with the project directory streamed into an isolated workspace volume. Your local files are never modified. Containers run with resource limits (512MB memory, 2 CPU cores, 512 pids by default) to prevent runaway processes. Services (e.g. Postgres) are started on a shared network and addressable by alias. Platform-neutral variables (`$PISYN_COMMIT_SHA`, etc.) are resolved from the local git repo. Job outputs (`Output()` / `OutputRef()`) and cache (`SetCache()`) work locally via Docker volumes.
 
 ```mermaid
 flowchart TD
