@@ -61,7 +61,7 @@ func (s *Synthesizer) render(p *pisyn.Pipeline) (tasks []map[string]any, pipelin
 			// runAfter: explicit needs or implicit stage ordering
 			runAfter := make([]string, len(j.NeedsList))
 			for i, n := range j.NeedsList {
-				runAfter[i] = sanitize(n)
+				runAfter[i] = sanitize(n.Job)
 			}
 			if len(runAfter) == 0 && len(prevStageTaskNames) > 0 {
 				runAfter = prevStageTaskNames

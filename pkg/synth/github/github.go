@@ -120,7 +120,7 @@ func renderJob(job *pisyn.Job, prevStageJobs []string) map[string]any {
 // setNeeds renders job dependencies. Falls back to previous stage jobs
 // if no explicit needs are declared (implicit stage ordering).
 func setNeeds(cfg map[string]any, job *pisyn.Job, prevStageJobs []string) {
-	needs := append([]string{}, job.NeedsList...)
+	needs := append([]string{}, job.NeedNames()...)
 	if len(needs) == 0 && len(prevStageJobs) > 0 {
 		needs = prevStageJobs
 	}

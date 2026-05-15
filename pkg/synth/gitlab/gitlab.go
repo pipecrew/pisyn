@@ -357,7 +357,34 @@ func scriptSequenceNode(lines []string) *yaml.Node {
 // the job starts immediately without waiting for prior stages.
 func setNeeds(cfg map[string]any, job *pisyn.Job) {
 	if len(job.NeedsList) > 0 {
-		cfg["needs"] = job.NeedsList
+		// Use object form if any entry has optional or artifacts set
+		useObjectForm := false
+		for _, e := range job.NeedsList {
+			if e.Optional || e.Artifacts != nil {
+				useObjectForm = true
+				break
+			}
+		}
+		if useObjectForm {
+			needs := make([]map[string]any, len(job.NeedsList))
+			for i, e := range job.NeedsList {
+				entry := map[string]any{"job": e.Job}
+				if e.Optional {
+					entry["optional"] = true
+				}
+				if e.Artifacts != nil {
+					entry["artifacts"] = *e.Artifacts
+				}
+				needs[i] = entry
+			}
+			cfg["needs"] = needs
+		} else {
+			names := make([]string, len(job.NeedsList))
+			for i, e := range job.NeedsList {
+				names[i] = e.Job
+			}
+			cfg["needs"] = names
+		}
 	} else if job.EmptyNeeds {
 		cfg["needs"] = []any{}
 	}

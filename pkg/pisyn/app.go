@@ -114,7 +114,7 @@ func (a *App) Graph() string {
 				id := sanitizeID(job.JobName)
 				fmt.Fprintf(&b, "        %s[%q]\n", id, job.JobName)
 				if len(job.NeedsList) > 0 {
-					for _, need := range job.NeedsList {
+					for _, need := range job.NeedNames() {
 						fmt.Fprintf(&edges, "    %s --> %s\n", sanitizeID(need), id)
 					}
 				} else if len(prevStageJobs) > 0 {

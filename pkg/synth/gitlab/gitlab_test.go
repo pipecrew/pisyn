@@ -365,3 +365,77 @@ func TestSynthGitLabMixedEmojiAndPlainScripts(t *testing.T) {
 		t.Errorf("Unicode escapes should not appear:\n%s", out)
 	}
 }
+
+func TestSynthGitLabNeedsOptional(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "deploy")
+	pisyn.NewJob(st, "deploy-at").
+		Image("alpine").
+		Need(
+			pisyn.NeedEntry{Job: "generate_annotations", Optional: true},
+			pisyn.NeedEntry{Job: "run_helm_dry_run", Optional: true, Artifacts: pisyn.BoolPtr(false)},
+		).
+		Script("echo deploying")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	out := string(b)
+
+	for _, want := range []string{
+		"needs:",
+		"job: generate_annotations",
+		"optional: true",
+		"job: run_helm_dry_run",
+		"artifacts: false",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
+func TestSynthGitLabNeedsSimple(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "deploy")
+	pisyn.NewJob(st, "deploy-at").
+		Image("alpine").
+		Needs("build", "test").
+		Script("echo deploying")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	out := string(b)
+
+	for _, want := range []string{
+		"needs:",
+		"- build",
+		"- test",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "job:") {
+		t.Errorf("simple needs should not use object form:\n%s", out)
+	}
+}

@@ -458,3 +458,83 @@ func TestLoadIR_InvalidJSON(t *testing.T) {
 		t.Error("expected error for invalid JSON")
 	}
 }
+
+func TestIR_NeedEntryRoundTrip(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	s := NewStage(p, "deploy")
+	NewJob(s, "deploy-at").
+		Image("alpine").
+		Need(
+			NeedEntry{Job: "generate_annotations", Optional: true},
+			NeedEntry{Job: "build_oci_image", Optional: false, Artifacts: BoolPtr(false)},
+		).
+		Needs("lint")
+
+	ir := app.ToIR()
+	data, err := json.MarshalIndent(ir, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var loaded IRApp
+	if err := json.Unmarshal(data, &loaded); err != nil {
+		t.Fatal(err)
+	}
+
+	app2 := loaded.ToApp()
+	j := app2.Pipelines()[0].Stages()[0].Jobs()[0]
+
+	if len(j.NeedsList) != 3 {
+		t.Fatalf("expected 3 need entries, got %d", len(j.NeedsList))
+	}
+
+	e0 := j.NeedsList[0]
+	if e0.Job != "generate_annotations" || !e0.Optional || e0.Artifacts != nil {
+		t.Errorf("entry 0: got %+v", e0)
+	}
+
+	e1 := j.NeedsList[1]
+	if e1.Job != "build_oci_image" || e1.Optional || e1.Artifacts == nil || *e1.Artifacts != false {
+		t.Errorf("entry 1: got %+v", e1)
+	}
+
+	e2 := j.NeedsList[2]
+	if e2.Job != "lint" || e2.Optional || e2.Artifacts != nil {
+		t.Errorf("entry 2: got %+v", e2)
+	}
+}
+
+func TestIR_SchemaVersionRejectsNewer(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "pipeline.json")
+	data := `{"version":99,"pipelines":[]}`
+	os.WriteFile(path, []byte(data), 0o644) //nolint:errcheck // test helper
+
+	_, err := LoadIR(path)
+	if err == nil {
+		t.Fatal("expected error for newer schema version")
+	}
+	if !strings.Contains(err.Error(), "newer pisyn version") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestClone_NeedEntryDeepCopy(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	s := NewStage(p, "build")
+	original := NewJob(s, "original").
+		Image("alpine").
+		Need(NeedEntry{Job: "dep", Optional: true, Artifacts: BoolPtr(false)})
+
+	clone := original.Clone(s, "clone")
+
+	// Mutate clone's artifacts pointer
+	*clone.NeedsList[0].Artifacts = true
+
+	// Original must be unaffected
+	if *original.NeedsList[0].Artifacts != false {
+		t.Error("clone mutation affected original — shallow copy bug")
+	}
+}

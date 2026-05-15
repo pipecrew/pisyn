@@ -276,6 +276,7 @@ pisyn.NewJob(stage, "build").
     BeforeScript("echo starting").
     AfterScript("echo done").
     Needs("lint").
+    Need(pisyn.NeedEntry{Job: "generate_annotations", Optional: true}).
     RunsOn("ubuntu-latest").
     Env("CGO_ENABLED", "0").
     AddService("postgres:16", "db").
@@ -403,6 +404,13 @@ pisyn.NewJob(stage, "test").
 // Empty needs — start immediately without waiting for prior stages
 pisyn.NewJob(stage, "lint").
     EmptyNeedsList()
+
+// Structured needs with optional/artifacts (GitLab CI object form)
+pisyn.NewJob(stage, "deploy").
+    Need(
+        pisyn.NeedEntry{Job: "generate_annotations", Optional: true},
+        pisyn.NeedEntry{Job: "run_helm_dry_run", Optional: true, Artifacts: pisyn.BoolPtr(false)},
+    )
 
 // Dependencies — control which jobs' artifacts to download (separate from needs)
 pisyn.NewJob(stage, "deploy").
@@ -578,6 +586,7 @@ golang.TestJob.Clone(stage, "unit-tests").Script("go test ./...")
 | Image (docker.user) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Before/after scripts | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Job dependencies (needs) | ✅ | ✅ | ✅ | ✅ (runAfter) | ✅ |
+| Structured needs (optional/artifacts) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Empty needs (`needs: []`) | ✅ | ✅ | ❌ | ❌ | ✅ |
 | Environment variables | ✅ | ✅ | ✅ | ❌ | ✅ |
 | Matrix builds | ✅ | ✅ | ✅ | ❌ | ❌ |

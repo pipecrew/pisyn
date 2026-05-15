@@ -38,6 +38,13 @@ type IRStage struct {
 	Jobs []IRJob `json:"jobs"`
 }
 
+// IRNeedEntry is the JSON representation of a NeedEntry.
+type IRNeedEntry struct {
+	Job       string `json:"job"`
+	Optional  bool   `json:"optional,omitempty"`
+	Artifacts *bool  `json:"artifacts,omitempty"`
+}
+
 // IRJob is the JSON representation of a Job.
 type IRJob struct {
 	Name            string              `json:"name"`
@@ -45,7 +52,7 @@ type IRJob struct {
 	ImageEntrypoint []string            `json:"image_entrypoint,omitempty"`
 	ImageUser       string              `json:"image_user,omitempty"`
 	Actions         []Action            `json:"actions,omitempty"`
-	Needs           []string            `json:"needs,omitempty"`
+	Needs           []IRNeedEntry       `json:"needs,omitempty"`
 	EmptyNeeds      bool                `json:"empty_needs,omitempty"`
 	Dependencies    []string            `json:"dependencies,omitempty"`
 	Runner          string              `json:"runner,omitempty"`
@@ -122,7 +129,7 @@ func jobToIR(job *Job) IRJob {
 		ImageEntrypoint: job.ImageEP,
 		ImageUser:       job.ImageUsr,
 		Actions:         job.Actions,
-		Needs:           job.NeedsList,
+		Needs:           needsToIR(job.NeedsList),
 		EmptyNeeds:      job.EmptyNeeds,
 		Dependencies:    job.DependencyList,
 		Runner:          job.Runner,
@@ -218,7 +225,7 @@ func irJobToJob(irj IRJob) *Job {
 		ImageEP:         irj.ImageEntrypoint,
 		ImageUsr:        irj.ImageUser,
 		Actions:         irj.Actions,
-		NeedsList:       irj.Needs,
+		NeedsList:       irNeedsToModel(irj.Needs),
 		EmptyNeeds:      irj.EmptyNeeds,
 		DependencyList:  irj.Dependencies,
 		Runner:          irj.Runner,
@@ -249,4 +256,26 @@ func irFetchDepthToJob(depth *int) int {
 		return -1
 	}
 	return *depth
+}
+
+func needsToIR(entries []NeedEntry) []IRNeedEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]IRNeedEntry, len(entries))
+	for i, e := range entries {
+		out[i] = IRNeedEntry{Job: e.Job, Optional: e.Optional, Artifacts: e.Artifacts}
+	}
+	return out
+}
+
+func irNeedsToModel(entries []IRNeedEntry) []NeedEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]NeedEntry, len(entries))
+	for i, e := range entries {
+		out[i] = NeedEntry{Job: e.Job, Optional: e.Optional, Artifacts: e.Artifacts}
+	}
+	return out
 }
