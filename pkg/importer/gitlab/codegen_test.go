@@ -300,6 +300,87 @@ test:
 	t.Error("test job not found")
 }
 
+func TestParse_NeedsObjectForm(t *testing.T) {
+	yml := []byte(`
+stages:
+  - build
+  - deploy
+build:
+  stage: build
+  script:
+    - echo build
+deploy:
+  stage: deploy
+  needs:
+    - job: build
+      optional: true
+      artifacts: false
+    - job: lint
+  script:
+    - echo deploy
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "deploy" {
+				if len(job.Needs) != 2 {
+					t.Fatalf("expected 2 needs, got %d", len(job.Needs))
+				}
+				if job.Needs[0].Job != "build" || !job.Needs[0].Optional {
+					t.Errorf("needs[0] = %+v, want {Job:build, Optional:true}", job.Needs[0])
+				}
+				if job.Needs[0].Artifacts == nil || *job.Needs[0].Artifacts != false {
+					t.Errorf("needs[0].Artifacts should be false, got %v", job.Needs[0].Artifacts)
+				}
+				if job.Needs[1].Job != "lint" || job.Needs[1].Optional {
+					t.Errorf("needs[1] = %+v, want {Job:lint, Optional:false}", job.Needs[1])
+				}
+				return
+			}
+		}
+	}
+	t.Error("deploy job not found")
+}
+
+func TestParse_NeedsSimpleStrings(t *testing.T) {
+	yml := []byte(`
+stages:
+  - build
+  - deploy
+build:
+  stage: build
+  script:
+    - echo build
+deploy:
+  stage: deploy
+  needs:
+    - build
+  script:
+    - echo deploy
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "deploy" {
+				if len(job.Needs) != 1 {
+					t.Fatalf("expected 1 need, got %d", len(job.Needs))
+				}
+				if job.Needs[0].Job != "build" || job.Needs[0].Optional {
+					t.Errorf("needs[0] = %+v, want {Job:build}", job.Needs[0])
+				}
+				return
+			}
+		}
+	}
+	t.Error("deploy job not found")
+}
+
 func TestParse_CacheKeyObjectForm(t *testing.T) {
 	yml := []byte(`
 stages:

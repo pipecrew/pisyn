@@ -104,12 +104,13 @@ import (
 app.Run()  // → pisyn.out/.gitlab-ci.yml, .github/workflows/<name>.yml, tekton/...
 ```
 
-For programmatic control (e.g. in tests), call `Synth()` directly:
+For programmatic control (e.g. in tests, libraries), use the decoupled API — no env-var dispatch:
 
 ```go
 import "github.com/pipecrew/pisyn/pkg/synth/gitlab"
 
-app.Synth(gitlab.NewSynthesizer())  // → pisyn.out/.gitlab-ci.yml
+app.Synth(gitlab.NewSynthesizer())  // single platform → pisyn.out/.gitlab-ci.yml
+app.SynthAll()                      // all registered platforms (same as Run but no env coupling)
 ```
 
 ## CLI
@@ -226,7 +227,7 @@ The TUI shows a split-panel view: job list with status indicators on the left, l
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Each job runs in a Docker container with the project directory copied into an isolated workspace volume. Your local files are never modified. Services (e.g. Postgres) are started on a shared network and addressable by alias. Platform-neutral variables (`$PISYN_COMMIT_SHA`, etc.) are resolved from the local git repo. Job outputs (`Output()` / `OutputRef()`) and cache (`SetCache()`) work locally via Docker volumes.
+Each job runs in a Docker container with the project directory streamed into an isolated workspace volume. Your local files are never modified. Containers run with resource limits (512MB memory, 2 CPU cores, 512 pids by default) to prevent runaway processes. Services (e.g. Postgres) are started on a shared network and addressable by alias. Platform-neutral variables (`$PISYN_COMMIT_SHA`, etc.) are resolved from the local git repo. Job outputs (`Output()` / `OutputRef()`) and cache (`SetCache()`) work locally via Docker volumes.
 
 ```mermaid
 flowchart TD
@@ -275,6 +276,7 @@ pisyn.NewJob(stage, "build").
     BeforeScript("echo starting").
     AfterScript("echo done").
     Needs("lint").
+    Need(pisyn.NeedEntry{Job: "generate_annotations", Optional: true}).
     RunsOn("ubuntu-latest").
     Env("CGO_ENABLED", "0").
     AddService("postgres:16", "db").
@@ -402,6 +404,13 @@ pisyn.NewJob(stage, "test").
 // Empty needs — start immediately without waiting for prior stages
 pisyn.NewJob(stage, "lint").
     EmptyNeedsList()
+
+// Structured needs with optional/artifacts (GitLab CI object form)
+pisyn.NewJob(stage, "deploy").
+    Need(
+        pisyn.NeedEntry{Job: "generate_annotations", Optional: true},
+        pisyn.NeedEntry{Job: "run_helm_dry_run", Optional: true, Artifacts: pisyn.BoolPtr(false)},
+    )
 
 // Dependencies — control which jobs' artifacts to download (separate from needs)
 pisyn.NewJob(stage, "deploy").
@@ -577,6 +586,7 @@ golang.TestJob.Clone(stage, "unit-tests").Script("go test ./...")
 | Image (docker.user) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Before/after scripts | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Job dependencies (needs) | ✅ | ✅ | ✅ | ✅ (runAfter) | ✅ |
+| Structured needs (optional/artifacts) | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Empty needs (`needs: []`) | ✅ | ✅ | ❌ | ❌ | ✅ |
 | Environment variables | ✅ | ✅ | ✅ | ❌ | ✅ |
 | Matrix builds | ✅ | ✅ | ✅ | ❌ | ❌ |

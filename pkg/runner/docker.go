@@ -3,7 +3,6 @@ package runner
 import (
 	"archive/tar"
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -23,6 +22,22 @@ import (
 	"github.com/pipecrew/pisyn/pkg/pisyn"
 )
 
+// ResourceLimits configures container resource constraints to prevent DoS.
+type ResourceLimits struct {
+	Memory   int64 // bytes; default 512MB
+	CPUQuota int64 // microseconds per 100ms period; default 200000 (2 cores)
+	PidsLimit int64 // max processes; default 512
+}
+
+// DefaultResourceLimits returns safe defaults: 512MB memory, 2 CPU cores, 512 pids.
+func DefaultResourceLimits() ResourceLimits {
+	return ResourceLimits{
+		Memory:    512 * 1024 * 1024, // 512 MB
+		CPUQuota:  200000,            // 2 cores (200ms per 100ms period)
+		PidsLimit: 512,
+	}
+}
+
 // DockerRunner manages Docker container lifecycle for local pipeline execution.
 type DockerRunner struct {
 	cli          client.APIClient
@@ -30,6 +45,7 @@ type DockerRunner struct {
 	workDir      string
 	workspaceVol string // Docker volume holding the workspace copy
 	localVars    map[string]string
+	limits       ResourceLimits
 }
 
 // NewDockerRunner creates a runner connected to the local Docker daemon.
@@ -61,6 +77,7 @@ func NewDockerRunner(workDir string) (*DockerRunner, error) {
 		cli:       cli,
 		workDir:   workDir,
 		localVars: ResolveLocalVars(workDir),
+		limits:    DefaultResourceLimits(),
 	}, nil
 }
 
@@ -131,12 +148,8 @@ func (d *DockerRunner) CreateWorkspace(ctx context.Context, name string) error {
 	}
 	defer func() { _ = d.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
 
-	// Tar the project directory and copy into the container's /workspace
-	tarBuf, err := tarDir(d.workDir)
-	if err != nil {
-		return fmt.Errorf("tar workspace: %w", err)
-	}
-	if err := d.cli.CopyToContainer(ctx, resp.ID, "/workspace", tarBuf, container.CopyToContainerOptions{}); err != nil {
+	// Tar the project directory and stream into the container's /workspace
+	if err := d.cli.CopyToContainer(ctx, resp.ID, "/workspace", tarDir(d.workDir), container.CopyToContainerOptions{}); err != nil {
 		return fmt.Errorf("copy to workspace volume: %w", err)
 	}
 	return nil
@@ -204,6 +217,11 @@ func (d *DockerRunner) RunJob(ctx context.Context, job *pisyn.Job, extraEnv map[
 
 	hostCfg := &container.HostConfig{
 		Binds: binds,
+		Resources: container.Resources{
+			Memory:    d.limits.Memory,
+			CPUQuota:  d.limits.CPUQuota,
+			PidsLimit: &d.limits.PidsLimit,
+		},
 	}
 
 	netCfg := &network.NetworkingConfig{}
@@ -412,9 +430,16 @@ func (d *DockerRunner) streamLogs(ctx context.Context, reader io.Reader, jobName
 // CollectOutputs reads dotenv files declared by the job from the workspace volume.
 // Keys are in PISYN_OUTPUT_<JOB>__<NAME> format plus the raw variable name.
 func (d *DockerRunner) CollectOutputs(ctx context.Context, job *pisyn.Job) map[string]string {
+	paths := make([]string, 0, len(job.OutputList))
+	for _, out := range job.OutputList {
+		paths = append(paths, out.DotenvFile)
+	}
+
+	fileContents := d.readFilesFromVolume(ctx, paths)
+
 	outputs := map[string]string{}
 	for _, out := range job.OutputList {
-		data := d.readFileFromVolume(ctx, out.DotenvFile)
+		data := fileContents[out.DotenvFile]
 		if data == "" {
 			continue
 		}
@@ -435,80 +460,103 @@ func (d *DockerRunner) CollectOutputs(ctx context.Context, job *pisyn.Job) map[s
 	return outputs
 }
 
-// readFileFromVolume reads a file from the workspace volume using CopyFromContainer.
-func (d *DockerRunner) readFileFromVolume(ctx context.Context, filePath string) string {
+// readFilesFromVolume reads multiple files from the workspace volume using a single helper container.
+func (d *DockerRunner) readFilesFromVolume(ctx context.Context, paths []string) map[string]string {
+	results := make(map[string]string, len(paths))
+	if len(paths) == 0 {
+		return results
+	}
+
 	resp, err := d.cli.ContainerCreate(ctx,
 		&container.Config{Image: helperImage, Cmd: []string{"true"}},
 		&container.HostConfig{Binds: []string{d.workspaceVol + ":/workspace:ro"}},
 		nil, nil, "")
 	if err != nil {
-		return ""
+		return results
 	}
 	defer func() { _ = d.cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
 
-	reader, _, err := d.cli.CopyFromContainer(ctx, resp.ID, "/workspace/"+filePath)
-	if err != nil {
-		return ""
+	for _, filePath := range paths {
+		reader, _, err := d.cli.CopyFromContainer(ctx, resp.ID, "/workspace/"+filePath)
+		if err != nil {
+			continue
+		}
+		tr := tar.NewReader(reader)
+		if _, err := tr.Next(); err != nil {
+			_ = reader.Close() // best-effort cleanup
+			continue
+		}
+		data, err := io.ReadAll(tr)
+		_ = reader.Close() // best-effort cleanup
+		if err != nil {
+			continue
+		}
+		results[filePath] = string(data)
 	}
-	defer func() { _ = reader.Close() }() // best-effort cleanup
-
-	tr := tar.NewReader(reader)
-	if _, err := tr.Next(); err != nil {
-		return ""
-	}
-	data, err := io.ReadAll(tr)
-	if err != nil {
-		return ""
-	}
-	return string(data)
+	return results
 }
 
-// tarDir creates a tar archive of the directory contents.
-func tarDir(dir string) (io.Reader, error) {
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
+// tarDir creates a tar archive of the directory contents, streaming via io.Pipe.
+// Symlinks are skipped to prevent path traversal attacks where a symlink
+// pointing outside the project tree could expose host files inside containers.
+// Errors during tar writing are delivered through the pipe reader.
+func tarDir(dir string) io.Reader {
+	pr, pw := io.Pipe()
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	go func() {
+		tw := tar.NewWriter(pw)
+
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if info.Mode()&os.ModeSymlink != 0 {
+				return nil
+			}
+
+			rel, err := filepath.Rel(dir, path)
+			if err != nil {
+				return err
+			}
+			if rel == "." {
+				return nil
+			}
+
+			header, err := tar.FileInfoHeader(info, "")
+			if err != nil {
+				return err
+			}
+			header.Name = rel
+
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+
+			f, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = f.Close() }() // read-only, safe to ignore
+			_, err = io.Copy(tw, f)
+			return err
+		})
 		if err != nil {
-			return err
+			_ = tw.Close()
+			_ = pw.CloseWithError(fmt.Errorf("tar workspace: %w", err))
+			return
 		}
+		if err := tw.Close(); err != nil {
+			_ = pw.CloseWithError(fmt.Errorf("finalize tar: %w", err))
+			return
+		}
+		_ = pw.Close()
+	}()
 
-		rel, err := filepath.Rel(dir, path)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
-
-		header, err := tar.FileInfoHeader(info, "")
-		if err != nil {
-			return err
-		}
-		header.Name = rel
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = f.Close() }() // read-only, safe to ignore
-		_, err = io.Copy(tw, f)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	if err := tw.Close(); err != nil {
-		return nil, fmt.Errorf("finalize tar: %w", err)
-	}
-	return &buf, nil
+	return pr
 }
 
 // Close releases the Docker client.

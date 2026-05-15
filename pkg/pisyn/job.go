@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// NeedEntry represents a single dependency in a job's needs list.
+type NeedEntry struct {
+	Job       string
+	Optional  bool
+	Artifacts *bool // nil = default (true), false = no artifacts
+}
+
+// BoolPtr returns a pointer to the given bool value.
+func BoolPtr(v bool) *bool { return &v }
+
 // Job represents a single CI/CD job within a stage.
 type Job struct {
 	Construct
@@ -13,7 +23,7 @@ type Job struct {
 	ImageEP         []string
 	ImageUsr        string
 	Actions         []Action
-	NeedsList       []string
+	NeedsList       []NeedEntry
 	Runner          string
 	ServiceList     []Service
 	EnvVars         map[string]string
@@ -72,7 +82,7 @@ func (j *Job) Clone(scope *Stage, name string) *Job {
 		ImageEP:        cloneStrings(j.ImageEP),
 		ImageUsr:       j.ImageUsr,
 		Actions:        cloneActions(j.Actions),
-		NeedsList:      cloneStrings(j.NeedsList),
+		NeedsList:      cloneNeedEntries(j.NeedsList),
 		Runner:         j.Runner,
 		ServiceList:    cloneSlice(j.ServiceList),
 		EnvVars:        cloneMap(j.EnvVars),
@@ -225,7 +235,34 @@ func (j *Job) removePhase(phase ActionPhase) {
 }
 
 // Needs declares job dependencies (jobs that must complete before this one).
-func (j *Job) Needs(jobs ...string) *Job { j.NeedsList = append(j.NeedsList, jobs...); return j }
+func (j *Job) Needs(jobs ...string) *Job {
+	for _, name := range jobs {
+		j.NeedsList = append(j.NeedsList, NeedEntry{Job: name})
+	}
+	return j
+}
+
+// NeedsOptional declares optional job dependencies that won't fail if the needed job doesn't exist.
+func (j *Job) NeedsOptional(jobs ...string) *Job {
+	for _, name := range jobs {
+		j.NeedsList = append(j.NeedsList, NeedEntry{Job: name, Optional: true})
+	}
+	return j
+}
+
+// NeedsNoArtifacts declares job dependencies without downloading their artifacts.
+func (j *Job) NeedsNoArtifacts(jobs ...string) *Job {
+	for _, name := range jobs {
+		j.NeedsList = append(j.NeedsList, NeedEntry{Job: name, Artifacts: BoolPtr(false)})
+	}
+	return j
+}
+
+// Need declares structured job dependencies with optional/artifacts fields.
+func (j *Job) Need(entries ...NeedEntry) *Job {
+	j.NeedsList = append(j.NeedsList, entries...)
+	return j
+}
 
 // RunsOn sets the runner label (e.g. "ubuntu-latest" for GitHub Actions).
 func (j *Job) RunsOn(runner string) *Job { j.Runner = runner; return j }
@@ -286,6 +323,18 @@ func (j *Job) Dependencies(deps ...string) *Job {
 
 // EmptyNeedsList sets an empty needs list so the job starts immediately.
 func (j *Job) EmptyNeedsList() *Job { j.EmptyNeeds = true; return j }
+
+// NeedNames returns just the job name strings from the needs list.
+func (j *Job) NeedNames() []string {
+	if len(j.NeedsList) == 0 {
+		return nil
+	}
+	names := make([]string, len(j.NeedsList))
+	for i, e := range j.NeedsList {
+		names[i] = e.Job
+	}
+	return names
+}
 
 // AddService adds a service container to the job.
 func (j *Job) AddService(image, alias string) *Job {
@@ -394,6 +443,21 @@ func cloneMapSlice(m map[string][]string) map[string][]string {
 	c := make(map[string][]string, len(m))
 	for k, v := range m {
 		c[k] = cloneStrings(v)
+	}
+	return c
+}
+
+func cloneNeedEntries(entries []NeedEntry) []NeedEntry {
+	if entries == nil {
+		return nil
+	}
+	c := make([]NeedEntry, len(entries))
+	for i, e := range entries {
+		c[i] = e
+		if e.Artifacts != nil {
+			v := *e.Artifacts
+			c[i].Artifacts = &v
+		}
 	}
 	return c
 }

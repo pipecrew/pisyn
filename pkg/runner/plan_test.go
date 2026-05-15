@@ -166,9 +166,6 @@ func TestPlan_WarnsOnMissingNeedsDep(t *testing.T) {
 }
 
 func TestPlan_CircularDependency(t *testing.T) {
-	// Can't create a true circular dep with the construct tree (stages are ordered),
-	// but we can verify the detection logic works with explicit needs that form a cycle
-	// within the same stage.
 	app := newTestApp(func(app *pisyn.App) {
 		p := pisyn.NewPipeline(app, "CI")
 		s := pisyn.NewStage(p, "test")
@@ -179,5 +176,39 @@ func TestPlan_CircularDependency(t *testing.T) {
 	_, err := Plan(app, RunOpts{})
 	if err == nil {
 		t.Fatal("expected circular dependency error")
+	}
+}
+
+func TestPlan_OptionalNeedSkippedSilently(t *testing.T) {
+	app := newTestApp(func(app *pisyn.App) {
+		p := pisyn.NewPipeline(app, "CI")
+		s := pisyn.NewStage(p, "test")
+		pisyn.NewJob(s, "a").Image("alpine").
+			Need(pisyn.NeedEntry{Job: "nonexistent", Optional: true})
+	})
+
+	plan, err := Plan(app, RunOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Warnings) != 0 {
+		t.Errorf("optional missing need should not warn, got: %v", plan.Warnings)
+	}
+}
+
+func TestPlan_RequiredMissingNeedWarns(t *testing.T) {
+	app := newTestApp(func(app *pisyn.App) {
+		p := pisyn.NewPipeline(app, "CI")
+		s := pisyn.NewStage(p, "test")
+		pisyn.NewJob(s, "a").Image("alpine").
+			Need(pisyn.NeedEntry{Job: "nonexistent", Optional: false})
+	})
+
+	plan, err := Plan(app, RunOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Warnings) != 1 {
+		t.Fatalf("expected 1 warning for required missing need, got %d: %v", len(plan.Warnings), plan.Warnings)
 	}
 }

@@ -167,7 +167,34 @@ func emitJobFields(b *strings.Builder, job *pisyn.IRJob) {
 	}
 
 	if len(job.Needs) > 0 {
-		w(".\n\t\tNeeds(%s)", goStringArgs(job.Needs))
+		hasStructured := false
+		for _, n := range job.Needs {
+			if n.Optional || n.Artifacts != nil {
+				hasStructured = true
+				break
+			}
+		}
+		if hasStructured {
+			entries := make([]string, len(job.Needs))
+			for i, n := range job.Needs {
+				arts := "nil"
+				if n.Artifacts != nil {
+					if *n.Artifacts {
+						arts = "pisyn.BoolPtr(true)"
+					} else {
+						arts = "pisyn.BoolPtr(false)"
+					}
+				}
+				entries[i] = fmt.Sprintf("pisyn.NeedEntry{Job: %q, Optional: %v, Artifacts: %s}", n.Job, n.Optional, arts)
+			}
+			w(".\n\t\tNeed(%s)", strings.Join(entries, ", "))
+		} else {
+			names := make([]string, len(job.Needs))
+			for i, n := range job.Needs {
+				names[i] = n.Job
+			}
+			w(".\n\t\tNeeds(%s)", goStringArgs(names))
+		}
 	}
 	if job.EmptyNeeds {
 		w(".\n\t\tEmptyNeedsList()")

@@ -72,11 +72,11 @@ func Plan(app *pisyn.App, opts RunOpts) (*ExecutionPlan, error) {
 	for _, job := range allJobs {
 		var jobDeps []string
 		if !job.EmptyNeeds && len(job.NeedsList) > 0 {
-			for _, need := range job.NeedsList {
-				if _, ok := jobByName[need]; ok {
-					jobDeps = append(jobDeps, need)
-				} else {
-					warnings = append(warnings, fmt.Sprintf("job %q needs %q which is not in the execution plan — dependency ignored", job.JobName, need))
+			for _, entry := range job.NeedsList {
+				if _, ok := jobByName[entry.Job]; ok {
+					jobDeps = append(jobDeps, entry.Job)
+				} else if !entry.Optional {
+					warnings = append(warnings, fmt.Sprintf("job %q needs %q which is not in the execution plan — dependency ignored", job.JobName, entry.Job))
 				}
 			}
 		} else if !job.EmptyNeeds {
