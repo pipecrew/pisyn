@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/pipecrew/pisyn/compare/v0.4.0...v0.5.0) (2026-05-15)
+
+
+### Features
+
+* add optional and artifacts to needs ([#65](https://github.com/pipecrew/pisyn/issues/65)) ([02b2615](https://github.com/pipecrew/pisyn/commit/02b26155a7234cfa647dbdbc0daa4e70fb66d23f))
+
 ## [0.4.0](https://github.com/pipecrew/pisyn/compare/v0.3.3...v0.4.0) (2026-05-08)
 
 
