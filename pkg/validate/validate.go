@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"gopkg.in/yaml.v3"
@@ -18,40 +19,60 @@ var schemaFiles = map[string]string{
 	"gitlab": "schemas/gitlab-ci.json",
 }
 
-// Validate checks a YAML byte slice against the schema for the given platform.
-// Returns nil if valid, or an error describing validation failures.
-func Validate(platform string, yamlData []byte) error {
+var (
+	compiledSchemas   = map[string]*jsonschema.Schema{}
+	compiledSchemasMu sync.Mutex
+)
+
+// getCompiledSchema returns a cached compiled schema, compiling on first access.
+func getCompiledSchema(platform string) (*jsonschema.Schema, error) {
+	compiledSchemasMu.Lock()
+	defer compiledSchemasMu.Unlock()
+
+	if s, ok := compiledSchemas[platform]; ok {
+		return s, nil
+	}
+
 	schemaFile, ok := schemaFiles[platform]
 	if !ok {
-		return fmt.Errorf("no schema for platform: %s", platform)
+		return nil, fmt.Errorf("no schema for platform: %s", platform)
 	}
 
-	// Parse YAML → generic interface
-	var doc any
-	if err := yaml.Unmarshal(yamlData, &doc); err != nil {
-		return fmt.Errorf("invalid YAML: %w", err)
-	}
-	// Convert to JSON-compatible types (yaml.v3 uses map[string]any, which is fine)
-	doc = convertYAML(doc)
-
-	// Load schema
 	schemaData, err := schemas.ReadFile(schemaFile)
 	if err != nil {
-		return fmt.Errorf("read schema: %w", err)
+		return nil, fmt.Errorf("read schema: %w", err)
 	}
 	var schemaDoc any
 	if err := json.Unmarshal(schemaData, &schemaDoc); err != nil {
-		return fmt.Errorf("parse schema: %w", err)
+		return nil, fmt.Errorf("parse schema: %w", err)
 	}
 
 	c := jsonschema.NewCompiler()
 	if err := c.AddResource(schemaFile, schemaDoc); err != nil {
-		return fmt.Errorf("add schema resource: %w", err)
+		return nil, fmt.Errorf("add schema resource: %w", err)
 	}
-	schema, err := c.Compile(schemaFile)
+	compiled, err := c.Compile(schemaFile)
 	if err != nil {
-		return fmt.Errorf("compile schema: %w", err)
+		return nil, fmt.Errorf("compile schema: %w", err)
 	}
+
+	compiledSchemas[platform] = compiled
+	return compiled, nil
+}
+
+// Validate checks a YAML byte slice against the schema for the given platform.
+// Returns nil if valid, or an error describing validation failures.
+func Validate(platform string, yamlData []byte) error {
+	schema, err := getCompiledSchema(platform)
+	if err != nil {
+		return err
+	}
+
+	var doc any
+	if err := yaml.Unmarshal(yamlData, &doc); err != nil {
+		return fmt.Errorf("invalid YAML: %w", err)
+	}
+	doc = convertYAML(doc)
 
 	if err := schema.Validate(doc); err != nil {
 		return fmt.Errorf("validation failed:\n%s", err)
