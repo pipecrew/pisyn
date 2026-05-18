@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.6.0](https://github.com/pipecrew/pisyn/compare/v0.5.0...v0.6.0) (2026-05-18)
+
+
+### Features
+
+* add action and on_stop support to environment ([#58](https://github.com/pipecrew/pisyn/issues/58)) ([6b14459](https://github.com/pipecrew/pisyn/commit/6b14459085c235628efed0c873d26ab96427bf80))
+* add gifs to docs ([c440247](https://github.com/pipecrew/pisyn/commit/c44024759d62df5293f71bb86c3df944e834b235))
+* add init command for reverse import of gitlab-ci files ([890752e](https://github.com/pipecrew/pisyn/commit/890752e5fb5fab7875edd470c79bacc03554b18c))
+* add init command for reverse import of gitlab-ci files ([21064c1](https://github.com/pipecrew/pisyn/commit/21064c17b6c5f20a9706ecfbbc5f344c11d8082f))
+* add new variable - VarProjectURL ([cf8f509](https://github.com/pipecrew/pisyn/commit/cf8f509c464976a91acc1839f6b7fa472c9487bc))
+* add OnPushTag() - a new pushtrigger for tags ([ce942f4](https://github.com/pipecrew/pisyn/commit/ce942f477a895a1a37474f25b4258a2f97641721))
+* add optional and artifacts to needs ([#65](https://github.com/pipecrew/pisyn/issues/65)) ([02b2615](https://github.com/pipecrew/pisyn/commit/02b26155a7234cfa647dbdbc0daa4e70fb66d23f))
+* add SetFetchDepth() and properly set safe.directory on github if depth &gt; -1 ([f7b6041](https://github.com/pipecrew/pisyn/commit/f7b60413339e255be3e1ea99d7f69d3eacd52523))
+* eat your own dogfood - use pisyn to create workflows ([e3778c0](https://github.com/pipecrew/pisyn/commit/e3778c0c6d31ac463c09954ad63514334dabcde0))
+* **graph:** group jobs by stage using Mermaid subgraph ([24e54a9](https://github.com/pipecrew/pisyn/commit/24e54a9637e8b0420e3627868d4b1c58beb82156)), closes [#10](https://github.com/pipecrew/pisyn/issues/10)
+* implement GitLab multi-pipeline merge 🎉 ([2f840df](https://github.com/pipecrew/pisyn/commit/2f840df29a9a581dfcf0e35555d8121524bc081c))
+* initial commit 🚀 ([3cbca6f](https://github.com/pipecrew/pisyn/commit/3cbca6f2b26fc6c25a87e6e027cb8d53e38f4785))
+
+
+### Bug Fixes
+
+* add FetchDepth to IR for round-trip data preservation ([94ac2dc](https://github.com/pipecrew/pisyn/commit/94ac2dc37e42b216668de4779b319d7c2b8de280)), closes [#9](https://github.com/pipecrew/pisyn/issues/9)
+* **ci:** exclude unfixable docker vulns from govulncheck ([#26](https://github.com/pipecrew/pisyn/issues/26)) ([#53](https://github.com/pipecrew/pisyn/issues/53)) ([860892c](https://github.com/pipecrew/pisyn/commit/860892ce2a15618250d0a34a84dba276050ae081))
+* cycle in graph namings ([20cf6ea](https://github.com/pipecrew/pisyn/commit/20cf6eaccd85221530ca1049cce1fc9ef4cd61f9))
+* **deps:** update go dependencies ([#60](https://github.com/pipecrew/pisyn/issues/60)) ([9996d1e](https://github.com/pipecrew/pisyn/commit/9996d1eb1457d1c6d071b7e99d4806d02d394348))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.6 ([2334f36](https://github.com/pipecrew/pisyn/commit/2334f361e9dcf64467cc00fa12fb344504ff4ca2))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.6 ([f228e59](https://github.com/pipecrew/pisyn/commit/f228e593eecf30e9109bcbd16f3e8675696feaaa))
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.3 ([b1acb53](https://github.com/pipecrew/pisyn/commit/b1acb53165a9b5e718abe8b6d9b32316582d2f6a))
+* **importer:** handle GitLab CI cache key object form ([311fc1f](https://github.com/pipecrew/pisyn/commit/311fc1f038def0767c309f0b5c64072685f3d1e8))
+* map PISYN_PROJECT_URL to CI_PROJECT_URL instead of CI_REPOSITORY_URL ([ab0305a](https://github.com/pipecrew/pisyn/commit/ab0305abfd85d9ad29976b734d72cb66bc00b6f1))
+* map PISYN_PROJECT_URL to CI_PROJECT_URL instead of CI_REPOSITORY_URL ([8ea00d1](https://github.com/pipecrew/pisyn/commit/8ea00d13c080a943e51e22f45fff15e12cd542c3)), closes [#11](https://github.com/pipecrew/pisyn/issues/11)
+* **pisyn:** deep-copy RetryCfg, AllowFailureCfg, Interruptible in Job.Clone ([f7f6e2b](https://github.com/pipecrew/pisyn/commit/f7f6e2b59da8aace2d6c2e60b66bb586dab88b5d))
+* **pisyn:** deep-copy RetryCfg, AllowFailureCfg, Interruptible in Job.Clone ([b091254](https://github.com/pipecrew/pisyn/commit/b0912541c8e5ed4b93f837afad9ab1f5fb07fee3))
+* replace panic with error in duplicate job name check ([fc192d5](https://github.com/pipecrew/pisyn/commit/fc192d5cce42f2db7577e6c60c2276429fdf4701))
+* replace panic with error in duplicate job name check ([ef3c63d](https://github.com/pipecrew/pisyn/commit/ef3c63d399fd6e4f14a5be6036c76fdcf56922d5))
+* run duplicate-name validation in Build() and use Pipeline.Name ([5932596](https://github.com/pipecrew/pisyn/commit/59325962e020077eb9165c483706fff175ca1101))
+* solve nondeterministic output ([#62](https://github.com/pipecrew/pisyn/issues/62)) ([6dafe3f](https://github.com/pipecrew/pisyn/commit/6dafe3fa382d3822a242fdddc6878ecf3437ff9e))
+* structure images in pipeline better, add grouping in renovate config ([#47](https://github.com/pipecrew/pisyn/issues/47)) ([7ce8b5a](https://github.com/pipecrew/pisyn/commit/7ce8b5af3fe1f5ab429a8c4756c3c1f52407f62d))
+* update dependencies and actions ([#45](https://github.com/pipecrew/pisyn/issues/45)) ([fec872a](https://github.com/pipecrew/pisyn/commit/fec872a290d25c3bcd53334220b5c91ebeaa00fb))
+* use *int for IRJob.FetchDepth to distinguish unset from zero ([0790779](https://github.com/pipecrew/pisyn/commit/0790779fd914d2bbb6d630bdec2ee4c11128e094))
+
 ## [0.5.0](https://github.com/pipecrew/pisyn/compare/v0.4.0...v0.5.0) (2026-05-15)
 
 
