@@ -264,7 +264,7 @@ func needsToIR(entries []NeedEntry) []IRNeedEntry {
 	}
 	out := make([]IRNeedEntry, len(entries))
 	for i, e := range entries {
-		out[i] = IRNeedEntry{Job: e.Job, Optional: e.Optional, Artifacts: e.Artifacts}
+		out[i] = IRNeedEntry(e)
 	}
 	return out
 }
@@ -275,7 +275,7 @@ func irNeedsToModel(entries []IRNeedEntry) []NeedEntry {
 	}
 	out := make([]NeedEntry, len(entries))
 	for i, e := range entries {
-		out[i] = NeedEntry{Job: e.Job, Optional: e.Optional, Artifacts: e.Artifacts}
+		out[i] = NeedEntry(e)
 	}
 	return out
 }
