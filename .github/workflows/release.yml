@@ -10,7 +10,7 @@ jobs:
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         container:
-            image: goreleaser/goreleaser:v2.15.4
+            image: goreleaser/goreleaser:v2.16.0
         steps:
             - uses: actions/checkout@v6
               with:
