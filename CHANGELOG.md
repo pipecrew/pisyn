@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/pipecrew/pisyn/compare/v0.6.0...v0.6.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **deps:** update go dependencies ([#71](https://github.com/pipecrew/pisyn/issues/71)) ([35f381d](https://github.com/pipecrew/pisyn/commit/35f381d5b6ad87501fd4eaf8918313b0b3a5de73))
+
 ## [0.6.0](https://github.com/pipecrew/pisyn/compare/v0.5.0...v0.6.0) (2026-05-18)
 
 
