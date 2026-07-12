@@ -12,7 +12,7 @@ jobs:
         container:
             image: goreleaser/goreleaser:v2.16.0
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                 fetch-depth: "0"
             - name: Mark workspace as safe directory

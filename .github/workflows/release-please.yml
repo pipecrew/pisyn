@@ -12,7 +12,7 @@ jobs:
         container:
             image: node:24-alpine
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - name: Run
               run: |-
                 npx release-please release-pr --repo-url=${{ github.server_url }}/${{ github.repository }} --token=$RELEASE_PAT --release-type=go --pull-request-header=":robot: new release" --pull-request-footer=" "
