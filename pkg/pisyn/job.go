@@ -173,7 +173,7 @@ func (j *Job) PrependScript(cmds ...string) *Job {
 
 // SetScript removes all existing main-phase script actions and adds a new one.
 func (j *Job) SetScript(cmds ...string) *Job {
-	j.removePhase(PhaseMain)
+	j.removeScripts(PhaseMain)
 	return j.Script(cmds...)
 }
 
@@ -211,7 +211,7 @@ func (j *Job) scriptsByPhase(phase ActionPhase) []string {
 // BeforeScript sets commands to run before the main script (replaces any previous before script).
 func (j *Job) BeforeScript(cmds ...string) *Job {
 	s := strings.Join(cmds, "\n")
-	j.removePhase(PhaseBefore)
+	j.removeScripts(PhaseBefore)
 	j.Actions = append([]Action{{Script: &s, Phase: PhaseBefore}}, j.Actions...)
 	return j
 }
@@ -219,15 +219,15 @@ func (j *Job) BeforeScript(cmds ...string) *Job {
 // AfterScript sets commands to run after the main script, even on failure (replaces any previous after script).
 func (j *Job) AfterScript(cmds ...string) *Job {
 	s := strings.Join(cmds, "\n")
-	j.removePhase(PhaseAfter)
+	j.removeScripts(PhaseAfter)
 	j.Actions = append(j.Actions, Action{Script: &s, Phase: PhaseAfter})
 	return j
 }
 
-func (j *Job) removePhase(phase ActionPhase) {
+func (j *Job) removeScripts(phase ActionPhase) {
 	filtered := make([]Action, 0, len(j.Actions))
 	for _, a := range j.Actions {
-		if a.Phase != phase {
+		if a.Phase != phase || a.Script == nil {
 			filtered = append(filtered, a)
 		}
 	}
