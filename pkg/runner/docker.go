@@ -236,7 +236,9 @@ func (d *DockerRunner) RunJob(ctx context.Context, job *pisyn.Job, extraEnv map[
 		return fmt.Errorf("create container: %w", err)
 	}
 	containerID := resp.ID
-	defer func() { _ = d.cli.ContainerRemove(context.Background(), containerID, container.RemoveOptions{Force: true}) }() // best-effort cleanup
+	defer func() {
+		_ = d.cli.ContainerRemove(context.Background(), containerID, container.RemoveOptions{Force: true})
+	}() // best-effort cleanup
 
 	// Start container
 	if err := d.cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
@@ -333,7 +335,7 @@ func (d *DockerRunner) startServices(ctx context.Context, job *pisyn.Job, events
 
 func (d *DockerRunner) stopContainers(ctx context.Context, ids []string) {
 	for _, id := range ids {
-		_ = d.cli.ContainerStop(ctx, id, container.StopOptions{})       // best-effort cleanup
+		_ = d.cli.ContainerStop(ctx, id, container.StopOptions{})                // best-effort cleanup
 		_ = d.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: true}) // best-effort cleanup
 	}
 }
@@ -497,8 +499,10 @@ func (d *DockerRunner) readFilesFromVolume(ctx context.Context, paths []string) 
 }
 
 // tarDir creates a tar archive of the directory contents, streaming via io.Pipe.
-// Symlinks are skipped to prevent path traversal attacks where a symlink
-// pointing outside the project tree could expose host files inside containers.
+// Symlinks are recorded as link entries (never followed), so no host file
+// content is read through them. Symlinks whose target is absolute or resolves
+// outside the project tree are skipped to prevent path traversal; in-tree
+// links, including dangling ones, are preserved as Typeflag=Symlink entries.
 // Errors during tar writing are delivered through the pipe reader.
 func tarDir(dir string) io.Reader {
 	pr, pw := io.Pipe()
@@ -511,10 +515,6 @@ func tarDir(dir string) io.Reader {
 				return err
 			}
 
-			if info.Mode()&os.ModeSymlink != 0 {
-				return nil
-			}
-
 			rel, err := filepath.Rel(dir, path)
 			if err != nil {
 				return err
@@ -523,7 +523,19 @@ func tarDir(dir string) io.Reader {
 				return nil
 			}
 
-			header, err := tar.FileInfoHeader(info, "")
+			isLink := info.Mode()&os.ModeSymlink != 0
+			linkTarget := ""
+			if isLink {
+				linkTarget, err = os.Readlink(path)
+				if err != nil {
+					return fmt.Errorf("readlink %s: %w", rel, err)
+				}
+				if !symlinkStaysInTree(dir, path, linkTarget) {
+					return nil
+				}
+			}
+
+			header, err := tar.FileInfoHeader(info, linkTarget)
 			if err != nil {
 				return err
 			}
@@ -532,7 +544,8 @@ func tarDir(dir string) io.Reader {
 			if err := tw.WriteHeader(header); err != nil {
 				return err
 			}
-			if info.IsDir() {
+			// Directories and symlinks have no body to copy.
+			if info.IsDir() || isLink {
 				return nil
 			}
 
@@ -557,6 +570,20 @@ func tarDir(dir string) io.Reader {
 	}()
 
 	return pr
+}
+
+// symlinkStaysInTree reports whether a symlink at path with the given target
+// resolves (lexically) inside root. Absolute targets are rejected outright.
+func symlinkStaysInTree(root, path, target string) bool {
+	if filepath.IsAbs(target) {
+		return false
+	}
+	resolved := filepath.Join(filepath.Dir(path), target)
+	rel, err := filepath.Rel(root, resolved)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // Close releases the Docker client.
