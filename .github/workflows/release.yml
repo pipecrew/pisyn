@@ -6,8 +6,11 @@ on:
             - v*
 jobs:
     goreleaser:
+        runs-on: ubuntu-latest
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         container:
-            image: goreleaser/goreleaser:v2.15.4
+            image: goreleaser/goreleaser:v2.16.0
         steps:
             - uses: actions/checkout@v6
               with:
@@ -16,6 +19,3 @@ jobs:
               run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
             - name: Run
               run: goreleaser release --clean
-        runs-on: ubuntu-latest
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

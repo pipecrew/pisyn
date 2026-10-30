@@ -40,9 +40,11 @@ pipeline/                   pisyn's own CI pipeline (eats its own dogfood)
 ## How It Works
 
 1. Users define pipelines in Go using the builder API (`NewApp → NewPipeline → NewStage → NewJob`)
-2. `app.Run()` serializes the construct tree to `pipeline.json` (IR)
+2. `app.Run()` serializes the construct tree to `pipeline.json` (IR) and synthesizes all registered platforms
 3. Synthesizers walk the tree and emit platform-specific YAML
 4. Each synthesizer self-registers via `init()` — blank imports activate them
+
+For programmatic use (tests, libraries), call `app.Build(outDir)` and `app.SynthAll()` directly instead of `app.Run()` — they have no env-var coupling.
 
 ## Making Changes
 

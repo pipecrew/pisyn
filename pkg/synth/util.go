@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -47,12 +48,45 @@ func toYAMLNode(v any) *yaml.Node {
 	switch val := v.(type) {
 	case *yaml.Node:
 		return val
-	case map[string]any:
+	case map[string]string:
 		n := &yaml.Node{Kind: yaml.MappingNode}
-		for k, v2 := range val {
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
 			n.Content = append(n.Content,
 				&yaml.Node{Kind: yaml.ScalarNode, Value: k},
-				toYAMLNode(v2),
+				&yaml.Node{Kind: yaml.ScalarNode, Value: val[k]},
+			)
+		}
+		return n
+	case map[string][]string:
+		n := &yaml.Node{Kind: yaml.MappingNode}
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			n.Content = append(n.Content,
+				&yaml.Node{Kind: yaml.ScalarNode, Value: k},
+				toYAMLNode(val[k]),
+			)
+		}
+		return n
+	case map[string]any:
+		n := &yaml.Node{Kind: yaml.MappingNode}
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			n.Content = append(n.Content,
+				&yaml.Node{Kind: yaml.ScalarNode, Value: k},
+				toYAMLNode(val[k]),
 			)
 		}
 		return n

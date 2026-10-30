@@ -3,6 +3,7 @@ package gitlab
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -74,7 +75,15 @@ func Parse(data []byte) (*ParseResult, error) {
 		stageIndex[s.Name] = i
 	}
 
-	for key, node := range raw {
+	// Sort keys for deterministic output order
+	keys := make([]string, 0, len(raw))
+	for key := range raw {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		node := raw[key]
 		if knownTopLevel[key] {
 			continue
 		}
@@ -423,24 +432,30 @@ func parseReports(node *yaml.Node) map[string][]string {
 	return reports
 }
 
-func parseNeeds(node *yaml.Node) []string {
+func parseNeeds(node *yaml.Node) []pisyn.IRNeedEntry {
 	if node.Kind == 0 {
 		return nil
 	}
 	// Try simple string list first
 	var ss []string
 	if err := node.Decode(&ss); err == nil {
-		return ss
+		out := make([]pisyn.IRNeedEntry, len(ss))
+		for i, s := range ss {
+			out[i] = pisyn.IRNeedEntry{Job: s}
+		}
+		return out
 	}
-	// Object form: [{job: "name", ...}]
+	// Object form: [{job: "name", optional: true, artifacts: false}]
 	var objs []struct {
-		Job string `yaml:"job"`
+		Job       string `yaml:"job"`
+		Optional  bool   `yaml:"optional"`
+		Artifacts *bool  `yaml:"artifacts"`
 	}
 	if err := node.Decode(&objs); err == nil {
-		out := make([]string, 0, len(objs))
+		out := make([]pisyn.IRNeedEntry, 0, len(objs))
 		for _, o := range objs {
 			if o.Job != "" {
-				out = append(out, o.Job)
+				out = append(out, pisyn.IRNeedEntry{Job: o.Job, Optional: o.Optional, Artifacts: o.Artifacts})
 			}
 		}
 		return out
@@ -494,11 +509,13 @@ func parseEnvironment(node *yaml.Node, ir *pisyn.IRJob) {
 		return
 	}
 	var env struct {
-		Name string `yaml:"name"`
-		URL  string `yaml:"url"`
+		Name   string `yaml:"name"`
+		URL    string `yaml:"url"`
+		Action string `yaml:"action"`
+		OnStop string `yaml:"on_stop"`
 	}
 	if err := node.Decode(&env); err == nil {
-		ir.Environment = &pisyn.Environment{Name: env.Name, URL: env.URL}
+		ir.Environment = &pisyn.Environment{Name: env.Name, URL: env.URL, Action: env.Action, OnStop: env.OnStop}
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/importer"
@@ -18,8 +19,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// pisynVersion is set via -ldflags at build time. Falls back to "dev".
-var pisynVersion = "dev"
+// pisynVersion is set via -ldflags at build time (GoReleaser).
+// Falls back to the module version embedded by `go install`.
+var pisynVersion = ""
+
+func init() {
+	if pisynVersion != "" {
+		return
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		pisynVersion = info.Main.Version
+	} else {
+		pisynVersion = "dev"
+	}
+}
 
 func main() {
 	root := &cobra.Command{

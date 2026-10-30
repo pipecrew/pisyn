@@ -24,10 +24,7 @@ func TestTarDirSymlink(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	r, err := tarDir(dir)
-	if err != nil {
-		t.Fatalf("tarDir: %v", err)
-	}
+	r := tarDir(dir)
 
 	var sawSymlink, sawRegular bool
 	tr := tar.NewReader(r)
@@ -78,10 +75,7 @@ func TestTarDirBrokenSymlink(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	r, err := tarDir(dir)
-	if err != nil {
-		t.Fatalf("tarDir on broken symlink: unexpected error %v", err)
-	}
+	r := tarDir(dir)
 
 	var sawSymlink bool
 	tr := tar.NewReader(r)
@@ -105,5 +99,45 @@ func TestTarDirBrokenSymlink(t *testing.T) {
 	}
 	if !sawSymlink {
 		t.Error("broken symlink entry missing from tar")
+	}
+}
+
+// TestTarDirSkipsEscapingSymlinks verifies that symlinks pointing outside the
+// project tree (absolute or via "..") are left out of the archive.
+func TestTarDirSkipsEscapingSymlinks(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Symlink("/etc/passwd", filepath.Join(dir, "abs")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.Symlink("../../outside", filepath.Join(dir, "sub", "up")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	if err := os.Symlink("../sub", filepath.Join(dir, "sub", "inside")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	names := map[string]bool{}
+	tr := tar.NewReader(tarDir(dir))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar read: %v", err)
+		}
+		names[hdr.Name] = true
+	}
+	if names["abs"] {
+		t.Error("absolute symlink should be skipped")
+	}
+	if names[filepath.Join("sub", "up")] {
+		t.Error("escaping relative symlink should be skipped")
+	}
+	if !names[filepath.Join("sub", "inside")] {
+		t.Error("in-tree symlink should be kept")
 	}
 }

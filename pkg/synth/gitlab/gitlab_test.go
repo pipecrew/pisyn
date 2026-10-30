@@ -290,6 +290,49 @@ func TestSynthGitLabEmojiScript(t *testing.T) {
 	}
 }
 
+func TestSynthGitLabEnvironmentOnStop(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	deploy := pisyn.NewStage(p, "deploy")
+	pisyn.NewJob(deploy, "deploy-review").
+		Image("alpine:latest").
+		Script("echo deploy").
+		SetEnvironmentOpts(pisyn.Environment{
+			Name:   "review/$CI_COMMIT_REF_SLUG",
+			URL:    "https://review.example.com",
+			OnStop: "stop-review",
+		})
+	pisyn.NewJob(deploy, "stop-review").
+		Image("alpine:latest").
+		Script("echo stop").
+		SetEnvironmentStop("review/$CI_COMMIT_REF_SLUG").
+		SetWhen(pisyn.Manual)
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	out := string(b)
+
+	for _, want := range []string{
+		"on_stop: stop-review",
+		"action: stop",
+		"name: review/$CI_COMMIT_REF_SLUG",
+		"url: https://review.example.com",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
 func TestSynthGitLabMixedEmojiAndPlainScripts(t *testing.T) {
 	dir := t.TempDir()
 	app := pisyn.NewApp()
@@ -320,5 +363,79 @@ func TestSynthGitLabMixedEmojiAndPlainScripts(t *testing.T) {
 	}
 	if strings.Contains(out, `\U`) {
 		t.Errorf("Unicode escapes should not appear:\n%s", out)
+	}
+}
+
+func TestSynthGitLabNeedsOptional(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "deploy")
+	pisyn.NewJob(st, "deploy-at").
+		Image("alpine").
+		Need(
+			pisyn.NeedEntry{Job: "generate_annotations", Optional: true},
+			pisyn.NeedEntry{Job: "run_helm_dry_run", Optional: true, Artifacts: pisyn.BoolPtr(false)},
+		).
+		Script("echo deploying")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	out := string(b)
+
+	for _, want := range []string{
+		"needs:",
+		"job: generate_annotations",
+		"optional: true",
+		"job: run_helm_dry_run",
+		"artifacts: false",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+}
+
+func TestSynthGitLabNeedsSimple(t *testing.T) {
+	dir := t.TempDir()
+	app := pisyn.NewApp()
+	app.OutDir = dir
+
+	p := pisyn.NewPipeline(app, "CI")
+	st := pisyn.NewStage(p, "deploy")
+	pisyn.NewJob(st, "deploy-at").
+		Image("alpine").
+		Needs("build", "test").
+		Script("echo deploying")
+
+	if err := app.Synth(gitlab.NewSynthesizer()); err != nil {
+		t.Fatalf("synth: %v", err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(dir, ".gitlab-ci.yml"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	out := string(b)
+
+	for _, want := range []string{
+		"needs:",
+		"- build",
+		"- test",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in output:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "job:") {
+		t.Errorf("simple needs should not use object form:\n%s", out)
 	}
 }

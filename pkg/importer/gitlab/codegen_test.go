@@ -300,6 +300,87 @@ test:
 	t.Error("test job not found")
 }
 
+func TestParse_NeedsObjectForm(t *testing.T) {
+	yml := []byte(`
+stages:
+  - build
+  - deploy
+build:
+  stage: build
+  script:
+    - echo build
+deploy:
+  stage: deploy
+  needs:
+    - job: build
+      optional: true
+      artifacts: false
+    - job: lint
+  script:
+    - echo deploy
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "deploy" {
+				if len(job.Needs) != 2 {
+					t.Fatalf("expected 2 needs, got %d", len(job.Needs))
+				}
+				if job.Needs[0].Job != "build" || !job.Needs[0].Optional {
+					t.Errorf("needs[0] = %+v, want {Job:build, Optional:true}", job.Needs[0])
+				}
+				if job.Needs[0].Artifacts == nil || *job.Needs[0].Artifacts != false {
+					t.Errorf("needs[0].Artifacts should be false, got %v", job.Needs[0].Artifacts)
+				}
+				if job.Needs[1].Job != "lint" || job.Needs[1].Optional {
+					t.Errorf("needs[1] = %+v, want {Job:lint, Optional:false}", job.Needs[1])
+				}
+				return
+			}
+		}
+	}
+	t.Error("deploy job not found")
+}
+
+func TestParse_NeedsSimpleStrings(t *testing.T) {
+	yml := []byte(`
+stages:
+  - build
+  - deploy
+build:
+  stage: build
+  script:
+    - echo build
+deploy:
+  stage: deploy
+  needs:
+    - build
+  script:
+    - echo deploy
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, stage := range r.Pipeline.Stages {
+		for _, job := range stage.Jobs {
+			if job.Name == "deploy" {
+				if len(job.Needs) != 1 {
+					t.Fatalf("expected 1 need, got %d", len(job.Needs))
+				}
+				if job.Needs[0].Job != "build" || job.Needs[0].Optional {
+					t.Errorf("needs[0] = %+v, want {Job:build}", job.Needs[0])
+				}
+				return
+			}
+		}
+	}
+	t.Error("deploy job not found")
+}
+
 func TestParse_CacheKeyObjectForm(t *testing.T) {
 	yml := []byte(`
 stages:
@@ -376,6 +457,111 @@ test-job:
 		}
 	}
 	t.Error("test-job not found")
+}
+
+func TestParse_EnvironmentActionOnStop(t *testing.T) {
+	yml := []byte(`
+stages:
+  - deploy
+deploy-review:
+  stage: deploy
+  script:
+    - echo deploy
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    url: https://review.example.com
+    on_stop: stop-review
+stop-review:
+  stage: deploy
+  script:
+    - echo stop
+  environment:
+    name: review/$CI_COMMIT_REF_SLUG
+    action: stop
+  when: manual
+`)
+	r, err := Parse(yml)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var deployJob, stopJob *pisyn.IRJob
+	for _, stage := range r.Pipeline.Stages {
+		for i := range stage.Jobs {
+			switch stage.Jobs[i].Name {
+			case "deploy-review":
+				deployJob = &stage.Jobs[i]
+			case "stop-review":
+				stopJob = &stage.Jobs[i]
+			}
+		}
+	}
+	if deployJob == nil {
+		t.Fatal("deploy-review job not found")
+	}
+	if deployJob.Environment == nil {
+		t.Fatal("deploy-review environment should not be nil")
+	}
+	if deployJob.Environment.OnStop != "stop-review" {
+		t.Errorf("deploy-review on_stop = %q, want stop-review", deployJob.Environment.OnStop)
+	}
+	if deployJob.Environment.URL != "https://review.example.com" {
+		t.Errorf("deploy-review url = %q", deployJob.Environment.URL)
+	}
+
+	if stopJob == nil {
+		t.Fatal("stop-review job not found")
+	}
+	if stopJob.Environment == nil {
+		t.Fatal("stop-review environment should not be nil")
+	}
+	if stopJob.Environment.Action != "stop" {
+		t.Errorf("stop-review action = %q, want stop", stopJob.Environment.Action)
+	}
+	if stopJob.Environment.Name != "review/$CI_COMMIT_REF_SLUG" {
+		t.Errorf("stop-review name = %q", stopJob.Environment.Name)
+	}
+}
+
+func TestGenerateGo_EnvironmentOnStop(t *testing.T) {
+	r := &ParseResult{Pipeline: &pisyn.IRPipeline{
+		Name: "CI",
+		Stages: []pisyn.IRStage{{
+			Name: "deploy",
+			Jobs: []pisyn.IRJob{
+				{
+					Name:  "deploy-review",
+					Image: "alpine",
+					Environment: &pisyn.Environment{
+						Name:   "review",
+						URL:    "https://review.example.com",
+						OnStop: "stop-review",
+					},
+					Actions: []pisyn.Action{{Script: strPtr("echo deploy")}},
+				},
+				{
+					Name:  "stop-review",
+					Image: "alpine",
+					Environment: &pisyn.Environment{
+						Name:   "review",
+						Action: "stop",
+					},
+					Actions: []pisyn.Action{{Script: strPtr("echo stop")}},
+				},
+			},
+		}},
+	}}
+
+	got := GenerateGo(r)
+
+	if !strings.Contains(got, `SetEnvironmentStop("review")`) {
+		t.Errorf("expected SetEnvironmentStop for stop job:\n%s", got)
+	}
+	if !strings.Contains(got, `SetEnvironmentOpts(`) {
+		t.Errorf("expected SetEnvironmentOpts for deploy job:\n%s", got)
+	}
+	if !strings.Contains(got, `OnStop: "stop-review"`) {
+		t.Errorf("expected OnStop field in SetEnvironmentOpts:\n%s", got)
+	}
 }
 
 func TestParse_CacheKeyStringForm(t *testing.T) {

@@ -4,6 +4,7 @@ package github
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
@@ -119,7 +120,7 @@ func renderJob(job *pisyn.Job, prevStageJobs []string) map[string]any {
 // setNeeds renders job dependencies. Falls back to previous stage jobs
 // if no explicit needs are declared (implicit stage ordering).
 func setNeeds(cfg map[string]any, job *pisyn.Job, prevStageJobs []string) {
-	needs := append([]string{}, job.NeedsList...)
+	needs := append([]string{}, job.NeedNames()...)
 	if len(needs) == 0 && len(prevStageJobs) > 0 {
 		needs = prevStageJobs
 	}
@@ -362,13 +363,26 @@ func buildActionStep(actionStep *pisyn.Step) map[string]any {
 // pisynToGitHub maps pisyn platform-neutral variables to GitHub Actions equivalents.
 var pisynToGitHub = pisyn.GitHubVars
 
+var varReplacer = buildVarReplacer(pisynToGitHub)
+
+// buildVarReplacer creates a single-pass string replacer for $VAR and ${VAR} patterns.
+func buildVarReplacer(m map[string]string) *strings.Replacer {
+	pairs := make([]string, 0, len(m)*4)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := m[k]
+		pairs = append(pairs, "${"+k+"}", v, "$"+k, v)
+	}
+	return strings.NewReplacer(pairs...)
+}
+
 // translateVars replaces pisyn variables with GitHub Actions equivalents.
 func translateVars(str string) string {
-	for pisynVar, ghVar := range pisynToGitHub {
-		str = strings.ReplaceAll(str, "${"+pisynVar+"}", ghVar)
-		str = strings.ReplaceAll(str, "$"+pisynVar, ghVar)
-	}
-	// Translate output refs: $PISYN_OUTPUT_JOBNAME_VARNAME → ${{ needs.job-name.outputs.varname }}
+	str = varReplacer.Replace(str)
 	str = translateOutputRefs(str)
 	return str
 }

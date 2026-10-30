@@ -36,9 +36,12 @@ pisyn is a CDK for CI/CD: define pipelines in Go, synthesize to GitLab CI / GitH
 - **Builder pattern**: all Job/Pipeline methods return `*Job`/`*Pipeline` for chaining
 - **Synthesizer helpers**: `setX(cfg map[string]any, job *pisyn.Job)` — one function per feature
 - **Platform registration**: synthesizers self-register via `init()` + `pisyn.RegisterPlatform()`
-- **Variable translation**: `$PISYN_*` constants in `vars.go`, per-platform maps (`GitLabVars`, `GitHubVars`, `TektonVars`)
+- **Variable translation**: `$PISYN_*` constants in `vars.go`, per-platform maps (`GitLabVars`, `GitHubVars`, `TektonVars`). Each synthesizer uses a `strings.NewReplacer` built once at init for single-pass O(n) translation.
 - **IR round-trip**: construct tree ↔ `pipeline.json` via `ToIR()`/`ToApp()` — all fields must be mapped in both directions
 - **Clone deep-copy**: `Clone()` in `job.go` must deep-copy all mutable fields (slices, maps, pointer structs)
+- **Deterministic output**: all map iterations must use sorted keys. Use `sort.Strings(keys)` before iterating. This applies to synthesizers, importers, and `toYAMLNode` in `pkg/synth/util.go`.
+- **App API**: `Run()` is the env-var-dispatched entry point for `go run` usage. `SynthAll()` is the library-friendly method for programmatic use (no env coupling). `Build()` writes `pipeline.json`.
+- **Runner security**: containers run with resource limits (`ResourceLimits` struct in `docker.go`). Workspace tar skips symlinks to prevent path traversal. Tar streams via `io.Pipe` (no full-project buffering).
 
 ## Adding a Job Feature (Checklist)
 

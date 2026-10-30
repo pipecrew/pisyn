@@ -170,6 +170,73 @@ func TestOnMR(t *testing.T) {
 	}
 }
 
+func TestSetEnvironmentStop(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	s := NewStage(p, "deploy")
+	j := NewJob(s, "stop-review").SetEnvironmentStop("review/branch")
+
+	if j.EnvironmentCfg == nil {
+		t.Fatal("EnvironmentCfg should not be nil")
+	}
+	if j.EnvironmentCfg.Name != "review/branch" {
+		t.Errorf("Name = %q, want review/branch", j.EnvironmentCfg.Name)
+	}
+	if j.EnvironmentCfg.Action != "stop" {
+		t.Errorf("Action = %q, want stop", j.EnvironmentCfg.Action)
+	}
+}
+
+func TestSetEnvironmentOpts(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	s := NewStage(p, "deploy")
+	j := NewJob(s, "deploy-review").SetEnvironmentOpts(Environment{
+		Name:   "review/branch",
+		URL:    "https://review.example.com",
+		Action: "start",
+		OnStop: "stop-review",
+	})
+
+	if j.EnvironmentCfg == nil {
+		t.Fatal("EnvironmentCfg should not be nil")
+	}
+	if j.EnvironmentCfg.Name != "review/branch" {
+		t.Errorf("Name = %q", j.EnvironmentCfg.Name)
+	}
+	if j.EnvironmentCfg.URL != "https://review.example.com" {
+		t.Errorf("URL = %q", j.EnvironmentCfg.URL)
+	}
+	if j.EnvironmentCfg.Action != "start" {
+		t.Errorf("Action = %q", j.EnvironmentCfg.Action)
+	}
+	if j.EnvironmentCfg.OnStop != "stop-review" {
+		t.Errorf("OnStop = %q", j.EnvironmentCfg.OnStop)
+	}
+}
+
+func TestCloneEnvironmentWithActionOnStop(t *testing.T) {
+	app := NewApp()
+	p := NewPipeline(app, "CI")
+	s := NewStage(p, "deploy")
+
+	tmpl := JobTemplate("base").SetEnvironmentOpts(Environment{
+		Name:   "review",
+		URL:    "https://r.example.com",
+		OnStop: "stop",
+	})
+
+	c := tmpl.Clone(s, "cloned")
+	c.EnvironmentCfg.OnStop = "changed"
+
+	if tmpl.EnvironmentCfg.OnStop != "stop" {
+		t.Error("clone environment leaked to template")
+	}
+	if c.EnvironmentCfg.OnStop != "changed" {
+		t.Error("clone environment not updated")
+	}
+}
+
 func TestIncludeTypes(t *testing.T) {
 	app := NewApp()
 	p := NewPipeline(app, "CI").

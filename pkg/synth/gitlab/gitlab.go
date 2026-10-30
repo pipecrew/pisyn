@@ -3,6 +3,7 @@ package gitlab
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/pipecrew/pisyn/pkg/pisyn"
@@ -356,7 +357,34 @@ func scriptSequenceNode(lines []string) *yaml.Node {
 // the job starts immediately without waiting for prior stages.
 func setNeeds(cfg map[string]any, job *pisyn.Job) {
 	if len(job.NeedsList) > 0 {
-		cfg["needs"] = job.NeedsList
+		// Use object form if any entry has optional or artifacts set
+		useObjectForm := false
+		for _, e := range job.NeedsList {
+			if e.Optional || e.Artifacts != nil {
+				useObjectForm = true
+				break
+			}
+		}
+		if useObjectForm {
+			needs := make([]map[string]any, len(job.NeedsList))
+			for i, e := range job.NeedsList {
+				entry := map[string]any{"job": e.Job}
+				if e.Optional {
+					entry["optional"] = true
+				}
+				if e.Artifacts != nil {
+					entry["artifacts"] = *e.Artifacts
+				}
+				needs[i] = entry
+			}
+			cfg["needs"] = needs
+		} else {
+			names := make([]string, len(job.NeedsList))
+			for i, e := range job.NeedsList {
+				names[i] = e.Job
+			}
+			cfg["needs"] = names
+		}
 	} else if job.EmptyNeeds {
 		cfg["needs"] = []any{}
 	}
@@ -428,7 +456,7 @@ func setMatrix(cfg map[string]any, job *pisyn.Job) {
 	}
 }
 
-// setEnvironment renders the deployment environment (name + optional URL).
+// setEnvironment renders the deployment environment (name + optional URL, action, on_stop).
 func setEnvironment(cfg map[string]any, job *pisyn.Job) {
 	if job.EnvironmentCfg == nil {
 		return
@@ -436,6 +464,12 @@ func setEnvironment(cfg map[string]any, job *pisyn.Job) {
 	env := map[string]any{"name": job.EnvironmentCfg.Name}
 	if job.EnvironmentCfg.URL != "" {
 		env["url"] = job.EnvironmentCfg.URL
+	}
+	if job.EnvironmentCfg.Action != "" {
+		env["action"] = job.EnvironmentCfg.Action
+	}
+	if job.EnvironmentCfg.OnStop != "" {
+		env["on_stop"] = job.EnvironmentCfg.OnStop
 	}
 	cfg["environment"] = env
 }
@@ -510,13 +544,26 @@ func setInterruptible(cfg map[string]any, job *pisyn.Job) {
 // pisynToGitLab maps pisyn platform-neutral variables to GitLab CI equivalents.
 var pisynToGitLab = pisyn.GitLabVars
 
-func translateVars(str string) string {
-	for pisynVar, gitlabVar := range pisynToGitLab {
-		str = strings.ReplaceAll(str, "${"+pisynVar+"}", "${"+gitlabVar+"}")
-		str = strings.ReplaceAll(str, "$"+pisynVar, "$"+gitlabVar)
+var varReplacer = buildVarReplacer(pisynToGitLab)
+
+// buildVarReplacer creates a single-pass string replacer for $VAR and ${VAR} patterns.
+func buildVarReplacer(m map[string]string) *strings.Replacer {
+	pairs := make([]string, 0, len(m)*4)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
 	}
-	// Translate output refs: $PISYN_OUTPUT_JOBNAME_VARNAME → $VARNAME
-	// GitLab injects dotenv vars directly by name
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := m[k]
+		pairs = append(pairs, "${"+k+"}", "${"+v+"}", "$"+k, "$"+v)
+	}
+	return strings.NewReplacer(pairs...)
+}
+
+// translateVars replaces pisyn platform-neutral variables with GitLab CI equivalents.
+func translateVars(str string) string {
+	str = varReplacer.Replace(str)
 	str = translateOutputRefs(str, func(_, varName string) string {
 		return "$" + varName
 	})
